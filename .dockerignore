@@ -1,0 +1,21 @@
+# node / next
+**/node_modules
+**/.next
+**/out
+
+# git
+.git
+.gitignore
+
+# logs
+**/*.log
+
+# env
+**/.env*
+.env*
+
+# OS
+.DS_Store
+
+# optional: backend if not needed
+backend
