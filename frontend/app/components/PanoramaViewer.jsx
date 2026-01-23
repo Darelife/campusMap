@@ -32,7 +32,25 @@ export default function PanoramaViewer() {
       gps: [73.880232, 15.391779, 0],
       locations: ['Library', 'Books Section', 'Reading Hall', 'Main Building'],
       sphereCorrection: { pan: '251.69deg' },
-      links: [{ nodeId: 'A14' }],
+      links: [{ nodeId: 'A14' }, { nodeId: 'A12' }],
+    },
+    {
+      id: 'A12',
+      panorama: '/A12.jpg',
+      caption: 'B Dome Front',
+      gps: [73.879949, 15.392390, 0],
+      locations: ['Main Building', 'BDome', 'B Dome', 'Central'],
+      sphereCorrection: { pan: '-59.69deg' },
+      links: [{ nodeId: 'A13' }, { nodeId: 'A11' }],
+    },
+    {
+      id: 'A11',
+      panorama: '/A11.jpg',
+      caption: 'B Dome Side',
+      gps: [73.879439, 15.392513, 0],
+      locations: ['BDome', 'AH1', 'INS'],
+      sphereCorrection: { pan: '220.04deg' },
+      links: [{ nodeId: 'A12' }],
     },
   ]), [])
 
@@ -65,7 +83,7 @@ export default function PanoramaViewer() {
           positionMode: 'gps',
           renderMode: '3d',
           nodes,
-          startNodeId: 'A13',
+          startNodeId: 'A12',
         }),
       ],
     })
