@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState, useMemo } from 'react'
-import { Viewer } from '@photo-sphere-viewer/core'
-import { VirtualTourPlugin } from '@photo-sphere-viewer/virtual-tour-plugin'
 import Fuse from 'fuse.js'
 
 import '@photo-sphere-viewer/core/index.css'
 import '@photo-sphere-viewer/virtual-tour-plugin/index.css'
+import '@photo-sphere-viewer/plan-plugin/index.css'
+import 'leaflet/dist/leaflet.css'
 
 export default function PanoramaViewer() {
   const containerRef = useRef(null)
@@ -75,32 +75,55 @@ export default function PanoramaViewer() {
   useEffect(() => {
     if (!containerRef.current) return
 
-    const viewer = new Viewer({
-      container: containerRef.current,
-      navbar: false,
-      plugins: [
-        VirtualTourPlugin.withConfig({
-          positionMode: 'gps',
-          renderMode: '3d',
-          nodes,
-          startNodeId: 'A12',
-        }),
-      ],
-    })
+    let viewer; // Define viewer in scope for cleanup
 
-    viewerRef.current = viewer
-    vtRef.current = viewer.getPlugin(VirtualTourPlugin)
+    (async () => {
+      const { Viewer } = await import('@photo-sphere-viewer/core')
+      const { VirtualTourPlugin } = await import('@photo-sphere-viewer/virtual-tour-plugin')
+      const { PlanPlugin } = await import('@photo-sphere-viewer/plan-plugin')
+      await import('leaflet') // Ensure leaflet is loaded
 
-    viewer.addEventListener('click', (e) => {
-      const yawDeg = e.data.yaw * 180 / Math.PI
-      console.log({
-        yawRad: e.data.yaw,
-        yawDeg: yawDeg.toFixed(2),
-        suggestedPan: `${yawDeg.toFixed(2)}deg`,
+      viewer = new Viewer({
+        container: containerRef.current,
+        navbar: false,
+        plugins: [
+          VirtualTourPlugin.withConfig({
+            positionMode: 'gps',
+            renderMode: '3d',
+            nodes,
+            startNodeId: 'A12',
+          }),
+          PlanPlugin.withConfig({
+            coordinates: [15.392390, 73.879949],
+            layers: [
+              {
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                attribution: '&copy; OpenStreetMap',
+              },
+            ],
+            hotspots: nodes.map(node => ({
+              id: node.id,
+              coordinates: [node.gps[1], node.gps[0]],
+              tooltip: { content: node.caption },
+            })),
+          }),
+        ],
       })
-    })
 
-    return () => viewer.destroy()
+      viewerRef.current = viewer
+      vtRef.current = viewer.getPlugin(VirtualTourPlugin)
+
+      viewer.addEventListener('click', (e) => {
+        const yawDeg = e.data.yaw * 180 / Math.PI
+        console.log({
+          yawRad: e.data.yaw,
+          yawDeg: yawDeg.toFixed(2),
+          suggestedPan: `${yawDeg.toFixed(2)}deg`,
+        })
+      })
+    })()
+
+    return () => viewer?.destroy()
   }, [nodes])
 
   const jumpToNode = (nodeId) => {
