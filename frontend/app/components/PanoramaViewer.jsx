@@ -95,7 +95,7 @@ export default function PanoramaViewer() {
       gps: [73.882161, 15.392325, 0],
       locations: ['D Spine', 'Snake Path'],
       sphereCorrection: { pan: '20.00deg' },
-      links: [{ nodeId: 'A18' }],
+      links: [{ nodeId: 'A18' }, { nodeId: 'A20' }],
     },
     {
       id: 'A20',
