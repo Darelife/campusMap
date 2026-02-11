@@ -141,7 +141,7 @@ export const nodes: Node[] = [
       gps: [73.88263889602477, 15.391859459103431, 0],
       locations: ['CS Dept', 'D153', 'Washroom', 'D 153'],
       sphereCorrection: { pan: '210.14deg' },
-      links: [{ nodeId: 'A23' }, { nodeId: 'A25' }],
+      links: [{ nodeId: 'A23' }, { nodeId: 'A25' }, {nodeId: 'A40'}],
     },
     {
       id: 'A25',
@@ -178,5 +178,23 @@ export const nodes: Node[] = [
       locations: ['CS Dept', 'Chambers', 'D Spine'],
       sphereCorrection: { pan: '79.05deg' },
       links: [{ nodeId: 'A34' },{ nodeId: 'A35' }],
+    },
+    {
+      id: 'A40',
+      panorama: '/A40.jpg',
+      caption: 'NAB Open Area 1',
+      gps: [73.882633, 15.391617, 0],
+      locations: ['CS Dept', 'NAB', 'NAB Open Area'],
+      sphereCorrection: { pan: '350.61deg' },
+      links: [{ nodeId: 'A41' }, {nodeId: 'A24'}],
+    },
+    {
+      id: 'A41',
+      panorama: '/A41.jpg',
+      caption: 'NAB Open Area 2',
+      gps: [73.882366, 15.391580, 0],
+      locations: ['CS Dept', 'NAB', 'NAB Open Area'],
+      sphereCorrection: { pan: '180deg' },
+      links: [{ nodeId: 'A40' }],
     }
   ]
