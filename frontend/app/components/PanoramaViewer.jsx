@@ -150,7 +150,37 @@ export default function PanoramaViewer() {
       locations: ['CS Dept', 'CSIS Conference Room', 'Conference Room', 'Hemant Rathore', 'D155', 'D 155', 'D156', 'D 156'],
       sphereCorrection: { pan: '160.14deg' },
       links: [{ nodeId: 'A24' }],
-    }
+    },
+
+       {
+     id: 'A34',
+     panorama: '/A34.jpg',
+     caption: 'CS Department 2nd floor Outer',
+     gps: [73.88254, 15.39205, 0],
+     locations: ['CS Dept', 'Chambers', 'Washroom',],
+     sphereCorrection: { pan: '15.5deg' },
+     links: [{ nodeId: 'A36' }],
+   },
+    {
+     id: 'A35',
+     panorama: '/A35.jpg',
+     caption: 'CS Department 2nd floor Chambers',
+     gps: [73.88233, 15.39220, 0],
+     locations: ['CS Dept', 'Chambers','HOD Office' ],
+     sphereCorrection: { pan: '79.05deg' },
+     links: [{ nodeId: 'A36' }],
+   },
+     {
+     id: 'A36',
+     panorama: '/A36.jpg',
+     caption: 'CS Department 2nd floor Chambers D Spine end',
+     gps: [73.88187, 15.39189, 0],
+     locations: ['CS Dept', 'Chambers', 'D Spine'],
+     sphereCorrection: { pan: '79.05deg' },
+     links: [{ nodeId: 'A34' },{ nodeId: 'A35' }],
+   }
+
+
   ]), [])
 
   const fuse = useMemo(() => {
