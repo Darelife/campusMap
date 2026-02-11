@@ -1,5 +1,5 @@
-import PanoramaViewer from './components/PanoramaViewer'
+import PanoramaViewer from "./components/PanoramaViewer";
 
 export default function Home() {
-  return <PanoramaViewer />
+  return <PanoramaViewer />;
 }
