@@ -162,6 +162,22 @@ export const nodes: Node[] = [
     links: [{ nodeId: "A24" }],
   },
   {
+        id: "A27",
+        panorama: "/A27.jpg",
+        caption:
+          "CS Department Ground Floor right side entrance towards chambers",
+        gps: [73.882273, 15.392149, 0],
+        locations: [
+          "CS Dept",
+          "Ground Floor",
+          "Chambers",
+          "Right Side",
+          "Imaginarium",
+        ],
+        sphereCorrection: { pan: "202.96deg" },
+        links: [], // TODO!
+  },
+  {
     id: "A34",
     panorama: "/A34.jpg",
     caption: "CS Department 2nd floor Outer",
