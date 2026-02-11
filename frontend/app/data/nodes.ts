@@ -141,7 +141,12 @@ export const nodes: Node[] = [
     gps: [73.88263889602477, 15.391859459103431, 0],
     locations: ["CS Dept", "D153", "Washroom", "D 153"],
     sphereCorrection: { pan: "210.14deg" },
-    links: [{ nodeId: "A23" }, { nodeId: "A25" }, { nodeId: "A40" }],
+    links: [
+      { nodeId: "A23" },
+      { nodeId: "A25" },
+      { nodeId: "A40" },
+      { nodeId: "A28" },
+    ],
   },
   {
     id: "A25",
@@ -162,21 +167,81 @@ export const nodes: Node[] = [
     links: [{ nodeId: "A24" }],
   },
   {
-        id: "A27",
-        panorama: "/A27.jpg",
-        caption:
-          "CS Department Ground Floor right side entrance towards chambers",
-        gps: [73.882273, 15.392149, 0],
-        locations: [
-          "CS Dept",
-          "Ground Floor",
-          "Chambers",
-          "Right Side",
-          "Imaginarium",
-        ],
-        sphereCorrection: { pan: "202.96deg" },
-        links: [], // TODO!
+    id: "A27",
+    panorama: "/A27.jpg",
+    caption: "CS Department Ground Floor right side entrance towards chambers",
+    gps: [73.882273, 15.392149, 0],
+    locations: [
+      "CS Dept",
+      "Ground Floor",
+      "Chambers",
+      "Right Side",
+      "Imaginarium",
+    ],
+    sphereCorrection: { pan: "202.96deg" },
+    links: [], // TODO!
   },
+
+  {
+    id: "A28",
+    panorama: "/A28.jpg",
+    caption: "CS Department Ground floor NAB Lawns",
+    gps: [73.88262863428304, 15.391729885728198, 0],
+    locations: ["CS Dept", "Ground Floor", "NAB Lawns", "NAB"],
+    sphereCorrection: { pan: "355.85deg" },
+    links: [{ nodeId: "A24" }],
+  },
+
+  {
+    id: "A29",
+    panorama: "/A29.jpg",
+    caption: "CS Department Ground floor near lift",
+    gps: [73.882697, 15.391806, 0],
+    locations: ["CS Dept", "Ground Floor", "Lift"],
+    sphereCorrection: { pan: "93.28deg" },
+    links: [], // TODO!
+  },
+
+  {
+    id: "A30",
+    panorama: "/A30.jpg",
+    caption: "CS Department 2nd Floor near right-side stairs, outside chambers",
+    gps: [73.8825713945877, 15.39182026028342, 0],
+    locations: ["CS Dept", "1st Floor", "Stairs", "Chambers"],
+    sphereCorrection: { pan: "6.13deg" },
+    links: [], // TODO!
+  },
+
+  {
+    id: "A31",
+    panorama: "/A31.jpg",
+    caption: "CS Department 2nd Floor near lift",
+    gps: [73.882516, 15.391824, 0],
+    locations: ["CS Dept", "2nd Floor", "Lift"],
+    sphereCorrection: { pan: "182.35deg" },
+    links: [], // TODO!
+  },
+
+  {
+    id: "A32",
+    panorama: "/A32.jpg",
+    caption: "CS Department 2nd Floor near chambers",
+    gps: [73.88267026307734, 15.391851573451262, 0],
+    locations: ["CS Dept", "2nd Floor", "Chambers"],
+    sphereCorrection: { pan: "2.59deg" },
+    links: [], // TODO!
+  },
+
+  {
+    id: "A33",
+    panorama: "/A33.jpg",
+    caption: "CS Department Right side stairs near NAB lawns",
+    gps: [73.88248842100653, 15.39182861930748, 0],
+    locations: ["CS Dept", "Stairs", "NAB Lawns"],
+    sphereCorrection: { pan: "251.77deg" },
+    links: [], // TODO!
+  },
+
   {
     id: "A34",
     panorama: "/A34.jpg",
