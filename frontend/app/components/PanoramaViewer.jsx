@@ -39,13 +39,18 @@ export default function PanoramaViewer() {
     if (!containerRef.current) return;
 
     let viewer; // Define viewer in scope for cleanup
+    let gpsWatchId = null;
+    let gpsMarker = null;
+    let gpsPulse = null;
+    let leafletMap = null;
 
     (async () => {
       const { Viewer } = await import("@photo-sphere-viewer/core");
-      const { VirtualTourPlugin } =
-        await import("@photo-sphere-viewer/virtual-tour-plugin");
+      const { VirtualTourPlugin } = await import(
+        "@photo-sphere-viewer/virtual-tour-plugin"
+      );
       const { PlanPlugin } = await import("@photo-sphere-viewer/plan-plugin");
-      await import("leaflet"); // Ensure leaflet is loaded
+      const L = await import("leaflet");
 
       viewer = new Viewer({
         container: containerRef.current,
@@ -85,9 +90,58 @@ export default function PanoramaViewer() {
           suggestedPan: `${yawDeg.toFixed(2)}deg`,
         });
       });
+
+      // --- Live GPS marker ---
+      const planPlugin = viewer.getPlugin(PlanPlugin);
+      leafletMap = planPlugin.getLeaflet();
+
+      if (navigator.geolocation && leafletMap) {
+        gpsWatchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+
+            if (!gpsMarker) {
+              // Outer pulsing ring
+              gpsPulse = L.circleMarker(latlng, {
+                radius: 16,
+                fillColor: "#ff0000",
+                color: "#ff0000",
+                weight: 1,
+                fillOpacity: 0.15,
+                className: "gps-pulse",
+              }).addTo(leafletMap);
+
+              // Inner solid dot
+              gpsMarker = L.circleMarker(latlng, {
+                radius: 7,
+                fillColor: "#ff0000",
+                color: "#ffffff",
+                weight: 2,
+                fillOpacity: 1,
+              }).addTo(leafletMap);
+            } else {
+              gpsMarker.setLatLng(latlng);
+              gpsPulse.setLatLng(latlng);
+            }
+          },
+          (err) => {
+            console.warn("GPS error:", err.message);
+          },
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
+        );
+      }
     })();
 
-    return () => viewer?.destroy();
+    return () => {
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+      }
+      if (leafletMap) {
+        if (gpsMarker) leafletMap.removeLayer(gpsMarker);
+        if (gpsPulse) leafletMap.removeLayer(gpsPulse);
+      }
+      viewer?.destroy();
+    };
   }, [nodes]);
 
   const jumpToNode = (nodeId) => {
@@ -153,3 +207,4 @@ export default function PanoramaViewer() {
     </>
   );
 }
+
