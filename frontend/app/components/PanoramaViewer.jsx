@@ -16,8 +16,6 @@ export default function PanoramaViewer() {
 
   const [query, setQuery] = useState("");
 
-  // nodes are now imported from ../data/nodes
-
   const fuse = useMemo(() => {
     return new Fuse(nodes, {
       keys: [
@@ -38,10 +36,9 @@ export default function PanoramaViewer() {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    let viewer; // Define viewer in scope for cleanup
+    let viewer;
     let gpsWatchId = null;
     let gpsMarker = null;
-    let gpsPulse = null;
     let leafletMap = null;
 
     (async () => {
@@ -82,6 +79,10 @@ export default function PanoramaViewer() {
       viewerRef.current = viewer;
       vtRef.current = viewer.getPlugin(VirtualTourPlugin);
 
+      vtRef.current.addEventListener("node-changed", ({ node }) => {
+        console.log("[PanoramaViewer] Node changed:", { id: node.id, caption: node.caption });
+      });
+
       viewer.addEventListener("click", (e) => {
         const yawDeg = (e.data.yaw * 180) / Math.PI;
         console.log({
@@ -96,38 +97,52 @@ export default function PanoramaViewer() {
       leafletMap = planPlugin.getLeaflet();
 
       if (navigator.geolocation && leafletMap) {
+        let gpsDone = false;
+
+        const placeMarker = (latlng) => {
+          if (!gpsMarker) {
+            gpsMarker = L.circleMarker(latlng, {
+              radius: 7,
+              fillColor: "#ff0000",
+              color: "#ffffff",
+              weight: 2,
+              fillOpacity: 1,
+            }).addTo(leafletMap);
+          } else {
+            gpsMarker.setLatLng(latlng);
+          }
+        };
+
+        // Stage 2: one-shot low-accuracy fallback — if this also fails, give up silently
+        const startLowAccuracy = () => {
+          if (gpsDone) return;
+          console.warn("GPS: high-accuracy failed, trying low-accuracy");
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              if (gpsDone) return;
+              gpsDone = true;
+              placeMarker(L.latLng(pos.coords.latitude, pos.coords.longitude));
+            },
+            (err) => {
+              console.warn("GPS unavailable:", err.message);
+            },
+            { enableHighAccuracy: false, maximumAge: 10000, timeout: 15000 },
+          );
+        };
+
+        // Stage 1: continuous high-accuracy watch (works on mobile with GPS chip)
         gpsWatchId = navigator.geolocation.watchPosition(
           (pos) => {
-            const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
-
-            if (!gpsMarker) {
-              // Outer pulsing ring
-              gpsPulse = L.circleMarker(latlng, {
-                radius: 16,
-                fillColor: "#ff0000",
-                color: "#ff0000",
-                weight: 1,
-                fillOpacity: 0.15,
-                className: "gps-pulse",
-              }).addTo(leafletMap);
-
-              // Inner solid dot
-              gpsMarker = L.circleMarker(latlng, {
-                radius: 7,
-                fillColor: "#ff0000",
-                color: "#ffffff",
-                weight: 2,
-                fillOpacity: 1,
-              }).addTo(leafletMap);
-            } else {
-              gpsMarker.setLatLng(latlng);
-              gpsPulse.setLatLng(latlng);
-            }
+            gpsDone = true;
+            placeMarker(L.latLng(pos.coords.latitude, pos.coords.longitude));
           },
           (err) => {
-            console.warn("GPS error:", err.message);
+            console.warn("GPS error (high-accuracy):", err.message);
+            navigator.geolocation.clearWatch(gpsWatchId);
+            gpsWatchId = null;
+            startLowAccuracy();
           },
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
         );
       }
     })();
@@ -136,9 +151,8 @@ export default function PanoramaViewer() {
       if (gpsWatchId !== null) {
         navigator.geolocation.clearWatch(gpsWatchId);
       }
-      if (leafletMap) {
-        if (gpsMarker) leafletMap.removeLayer(gpsMarker);
-        if (gpsPulse) leafletMap.removeLayer(gpsPulse);
+      if (leafletMap && gpsMarker) {
+        leafletMap.removeLayer(gpsMarker);
       }
       viewer?.destroy();
     };
@@ -207,4 +221,3 @@ export default function PanoramaViewer() {
     </>
   );
 }
-
