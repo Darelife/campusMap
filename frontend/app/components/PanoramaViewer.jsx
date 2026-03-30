@@ -57,7 +57,7 @@ export default function PanoramaViewer() {
             positionMode: "gps",
             renderMode: "3d",
             nodes,
-            startNodeId: "A12",
+            startNodeId: "AH1_corner",
           }),
           PlanPlugin.withConfig({
             coordinates: [15.39239, 73.879949],
@@ -80,7 +80,10 @@ export default function PanoramaViewer() {
       vtRef.current = viewer.getPlugin(VirtualTourPlugin);
 
       vtRef.current.addEventListener("node-changed", ({ node }) => {
-        console.log("[PanoramaViewer] Node changed:", { id: node.id, caption: node.caption });
+        console.log("[PanoramaViewer] Node changed:", {
+          id: node.id,
+          caption: node.caption,
+        });
       });
 
       viewer.addEventListener("click", (e) => {
@@ -126,7 +129,7 @@ export default function PanoramaViewer() {
             (err) => {
               console.warn("GPS unavailable:", err.message);
             },
-            { enableHighAccuracy: false, maximumAge: 10000, timeout: 15000 },
+            { enableHighAccuracy: false, maximumAge: 10000, timeout: 15000 }
           );
         };
 
@@ -142,7 +145,7 @@ export default function PanoramaViewer() {
             gpsWatchId = null;
             startLowAccuracy();
           },
-          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
         );
       }
     })();
