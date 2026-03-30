@@ -57,7 +57,7 @@ export default function PanoramaViewer() {
             positionMode: "gps",
             renderMode: "3d",
             nodes,
-            startNodeId: "AH1_corner",
+            startNodeId: "Entrance",
           }),
           PlanPlugin.withConfig({
             coordinates: [15.39239, 73.879949],
