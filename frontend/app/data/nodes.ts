@@ -109,7 +109,12 @@ export const nodes: Node[] = [
     gps: [73.882419, 15.392385, 0],
     locations: ["D Spine", "CS Dept"],
     sphereCorrection: { pan: "284.98deg" },
-    links: [{ nodeId: "A19" }, { nodeId: "A21" }, { nodeId: "A22" }],
+    links: [
+      { nodeId: "A19" },
+      { nodeId: "A21" },
+      { nodeId: "A22" },
+      { nodeId: "D Spine Lovers Lane Entrance" },
+    ],
   },
   {
     id: "A21",
@@ -118,7 +123,11 @@ export const nodes: Node[] = [
     gps: [73.88275, 15.392481, 0],
     locations: ["D Spine", "Hostel Intersection", "Hostel Road"],
     sphereCorrection: { pan: "284.98deg" },
-    links: [{ nodeId: "A20" }],
+    links: [
+      { nodeId: "A20" },
+      { nodeId: "DH1 Corner" },
+      { nodeId: "D Hostel Outdoor" },
+    ],
   },
   {
     id: "A22",
@@ -213,7 +222,7 @@ export const nodes: Node[] = [
     gps: [73.8825713945877, 15.39182026028342, 0],
     locations: ["CS Dept", "1st Floor", "Stairs", "Chambers"],
     sphereCorrection: { pan: "6.13deg" },
-    links: [{ nodeId: "A31" },{ nodeId: "A32" }], // TODO!
+    links: [{ nodeId: "A31" }, { nodeId: "A32" }], // TODO!
   },
 
   {
@@ -223,7 +232,7 @@ export const nodes: Node[] = [
     gps: [73.882516, 15.391824, 0],
     locations: ["CS Dept", "2nd Floor", "Lift"],
     sphereCorrection: { pan: "182.35deg" },
-    links: [{ nodeId: "A30" },{ nodeId: "A32" }], // TODO!
+    links: [{ nodeId: "A30" }, { nodeId: "A32" }], // TODO!
   },
 
   {
@@ -233,7 +242,7 @@ export const nodes: Node[] = [
     gps: [73.88267026307734, 15.391851573451262, 0],
     locations: ["CS Dept", "2nd Floor", "Chambers"],
     sphereCorrection: { pan: "2.59deg" },
-    links: [{ nodeId: "A30" },{ nodeId: "A31" }], // TODO!
+    links: [{ nodeId: "A30" }, { nodeId: "A31" }], // TODO!
   },
 
   {
@@ -356,7 +365,7 @@ export const nodes: Node[] = [
     gps: [73.87631658275369, 15.39047345601467, 0],
     locations: ["AH6"],
     sphereCorrection: { pan: "80.06deg" },
-    links: [{ nodeId: "AH9" }, { nodeId: "AH4_5" }],
+    links: [{ nodeId: "AH9" }, { nodeId: "AH4_5" }, { nodeId: "A_split" }],
   },
   {
     id: "AH4_5",
@@ -365,7 +374,11 @@ export const nodes: Node[] = [
     gps: [73.87665196637879, 15.390809121556668, 0],
     locations: ["AH4", "AH5"],
     sphereCorrection: { pan: "190.06deg" },
-    links: [{ nodeId: "AH6" }, { nodeId: "AH8_3" }],
+    links: [
+      { nodeId: "AH6" },
+      { nodeId: "AH8_3" },
+      { nodeId: "AH4-5 Roadside Entry" },
+    ],
   },
   {
     id: "AH8_3",
@@ -383,7 +396,11 @@ export const nodes: Node[] = [
     gps: [73.87786063280642, 15.391954131043116, 0],
     locations: ["AH7", "AH2", "Colours Laundry", "A Mess"],
     sphereCorrection: { pan: "150deg" },
-    links: [{ nodeId: "AH8_3" }, { nodeId: "AH1_corner" }],
+    links: [
+      { nodeId: "AH8_3" },
+      { nodeId: "AH1_corner" },
+      { nodeId: "AH2 / A Mess Roadside Entry" },
+    ],
   },
   {
     id: "AH1_corner",
@@ -392,7 +409,7 @@ export const nodes: Node[] = [
     gps: [73.87856961152563, 15.392667398921269, 0],
     locations: ["AH1 Corner"],
     sphereCorrection: { pan: "220deg" },
-    links: [{ nodeId: "AH7_2" }],
+    links: [{ nodeId: "AH7_2" }, { nodeId: "AH1 Corner" }],
   },
   {
     id: "AC_split_barriers",
@@ -410,7 +427,11 @@ export const nodes: Node[] = [
     gps: [73.87693225389268, 15.38979436441318, 0],
     locations: ["A Split"],
     sphereCorrection: { pan: "173deg" },
-    links: [{ nodeId: "AC_split_barriers" }, { nodeId: "AH6 Roadside" }],
+    links: [
+      { nodeId: "AC_split_barriers" },
+      { nodeId: "AH6 Roadside" },
+      { nodeId: "AH6" },
+    ],
   },
   {
     id: "AH6 Roadside",
@@ -428,7 +449,11 @@ export const nodes: Node[] = [
     gps: [73.87718249225951, 15.390250766302724, 0],
     locations: ["AH4-5 Roadside Entry"],
     sphereCorrection: { pan: "309deg" },
-    links: [{ nodeId: "AH6 Roadside" }, { nodeId: "AH5-3 Mid Roadside" }],
+    links: [
+      { nodeId: "AH6 Roadside" },
+      { nodeId: "AH5-3 Mid Roadside" },
+      { nodeId: "AH4_5" },
+    ],
   },
   {
     id: "AH5-3 Mid Roadside",
@@ -464,6 +489,7 @@ export const nodes: Node[] = [
     links: [
       { nodeId: "AH3 / A Mess Roadside Entry" },
       { nodeId: "AH1 Corner" },
+      { nodeId: "AH7_2" },
     ],
   },
   {
@@ -477,6 +503,7 @@ export const nodes: Node[] = [
       { nodeId: "AH2 / A Mess Roadside Entry" },
       { nodeId: "BITS Pilani Leaf Writing" },
       { nodeId: "A11" },
+      { nodeId: "AH1_corner" },
     ],
   },
   {
@@ -496,5 +523,90 @@ export const nodes: Node[] = [
     locations: ["Library CH2 Intersection"],
     sphereCorrection: { pan: "214deg" },
     links: [{ nodeId: "BITS Pilani Leaf Writing" }, { nodeId: "A13" }],
+  },
+  {
+    id: "DH1 Corner",
+    panorama: "/DH1 Corner.jpg",
+    caption: "DH1 Corner",
+    gps: [73.88264746523767, 15.392882945160938, 0],
+    locations: ["DH1 Corner"],
+    sphereCorrection: { pan: "287.11deg" },
+    links: [
+      { nodeId: "DH1" },
+      { nodeId: "A21" },
+      { nodeId: "D Spine Lovers Lane Entrance" },
+    ],
+  },
+  {
+    id: "DH1",
+    panorama: "/DH1.jpg",
+    caption: "DH1",
+    gps: [73.88306809928693, 15.392996296292026, 0],
+    locations: ["DH1"],
+    sphereCorrection: { pan: "287.11deg" },
+    links: [{ nodeId: "DH2" }, { nodeId: "DH1 Corner" }],
+  },
+  {
+    id: "DH2",
+    panorama: "/DH2.jpg",
+    caption: "DH2",
+    gps: [73.88337639008341, 15.393066825849262, 0],
+    locations: ["DH2"],
+    sphereCorrection: { pan: "250deg" },
+    links: [{ nodeId: "DH1" }, { nodeId: "D Mess" }],
+  },
+  {
+    id: "D Mess",
+    panorama: "/DMess.jpg",
+    caption: "D Mess",
+    gps: [73.88396945796867, 15.392799820960839, 0],
+    locations: ["D Mess"],
+    sphereCorrection: { pan: "270deg" },
+    links: [{ nodeId: "DH2" }, { nodeId: "DH3" }],
+  },
+  {
+    id: "DH3",
+    panorama: "/DH3.jpg",
+    caption: "DH3",
+    gps: [73.88363900660431, 15.39233486766575, 0],
+    locations: ["DH3"],
+    sphereCorrection: { pan: "100deg" },
+    links: [{ nodeId: "D Mess" }, { nodeId: "DH4" }],
+  },
+  {
+    id: "DH4",
+    panorama: "/DH4.jpg",
+    caption: "DH4",
+    gps: [73.88321789983, 15.392202981593321, 0],
+    locations: ["DH4"],
+    sphereCorrection: { pan: "80deg" },
+    links: [{ nodeId: "DH3" }, { nodeId: "A21" }],
+  },
+  {
+    id: "D Hostel Outdoor",
+    panorama: "DHostelInBetween.jpg",
+    caption: "D Hostel Outdoor",
+    gps: [73.88354781150669, 15.392686563450294, 0],
+    locations: ["D Hostel Outdoor"],
+    sphereCorrection: { pan: "0deg" },
+    links: [{ nodeId: "A21" }, { nodeId: "D Mess" }],
+  },
+  {
+    id: "D Spine Lovers Lane Entrance",
+    panorama: "D Spine Entrance.jpg",
+    caption: "D Spine Lovers Lane Entrance",
+    gps: [73.88233813528075, 15.39280551924263, 0],
+    locations: ["D Spine Lovers Lane Entrance"],
+    sphereCorrection: { pan: "220deg" },
+    links: [{ nodeId: "DH1 Corner" }, { nodeId: "A20" }, { nodeId: "LT12" }],
+  },
+  {
+    id: "LT12",
+    panorama: "LT12_entrance.jpg",
+    caption: "LT12 Entrance",
+    gps: [73.88191166403972, 15.392805519245558, 0],
+    locations: ["LT12 Entrance"],
+    sphereCorrection: { pan: "270deg" },
+    links: [{ nodeId: "D Spine Lovers Lane Entrance" }],
   },
 ];
