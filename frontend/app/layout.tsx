@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Campus Map",
   },
+  icons: {
+    icon: [{ url: "/favicon.png" }],
+  },
 };
 
 export const viewport: Viewport = {
