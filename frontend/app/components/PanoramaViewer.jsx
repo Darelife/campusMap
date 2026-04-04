@@ -168,7 +168,32 @@ export default function PanoramaViewer() {
 
   return (
     <>
+      {/* Dynamic Mobile CSS */}
+      <style jsx global>{`
+        .psv-plan-container {
+          bottom: 20px !important;
+          right: 10px !important;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Mobile specific overrides */
+        @media (max-width: 600px) {
+          .psv-plan-container {
+            width: 140px !important; /* Make map much smaller on phone */
+            height: 140px !important;
+            bottom: 80px !important; /* Lift it above the phone's bottom nav bar */
+          }
+
+          .search-container {
+            width: calc(100% - 40px) !important;
+            top: 10px !important;
+            left: 20px !important;
+          }
+        }
+      `}</style>
       <div
+        className="search-ui-box"
         style={{
           position: "absolute",
           top: 20,
@@ -192,7 +217,7 @@ export default function PanoramaViewer() {
             borderRadius: 6,
             border: "none",
             outline: "none",
-            fontSize: 14,
+            fontSize: 16,
           }}
         />
 
@@ -220,7 +245,7 @@ export default function PanoramaViewer() {
         )}
       </div>
 
-      <div ref={containerRef} style={{ width: "100vw", height: "100vh" }} />
+      <div ref={containerRef} style={{ width: "100vw", height: "100dvh" }} />
     </>
   );
 }
