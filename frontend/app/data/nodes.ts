@@ -225,7 +225,7 @@ export const nodes: Node[] = [
     gps: [73.8825713945877, 15.39182026028342, 0],
     locations: ["CS Dept", "1st Floor", "Stairs", "Chambers"],
     sphereCorrection: { pan: "6.13deg" },
-    links: [{ nodeId: "A31" }, { nodeId: "A32" }], // TODO!
+    links: [{ nodeId: "A31" }, { nodeId: "A32" }, { nodeId: "A33" }], // TODO!
   },
 
   {
@@ -255,7 +255,7 @@ export const nodes: Node[] = [
     gps: [73.88248842100653, 15.39182861930748, 0],
     locations: ["CS Dept", "Stairs", "NAB Lawns"],
     sphereCorrection: { pan: "251.77deg" },
-    links: [{ nodeId: "A28" }], // TODO!
+    links: [{ nodeId: "A28" }, { nodeId: "A30" }], // TODO!
   },
   {
     id: "A34",
