@@ -157,14 +157,14 @@ export const nodes: Node[] = [
     links: [
       { nodeId: "A23" },
       { nodeId: "A25" },
-      { nodeId: "A40" },
+      // { nodeId: "A40" },
       { nodeId: "A28" },
     ],
   },
   {
     id: "A25",
     panorama: "/A25.jpg",
-    caption: "CS Dept D153",
+    caption: "CS Dept Conference Room",
     gps: [73.88251886717195, 15.391843943063517, 0],
     locations: [
       "CS Dept",
@@ -202,9 +202,13 @@ export const nodes: Node[] = [
     gps: [73.88262863428304, 15.391729885728198, 0],
     locations: ["CS Dept", "Ground Floor", "NAB Lawns", "NAB"],
     sphereCorrection: { pan: "355.85deg" },
-    links: [{ nodeId: "A24" }],
+    links: [
+      { nodeId: "A24" },
+      { nodeId: "A29" },
+      { nodeId: "A40" },
+      { nodeId: "A33" },
+    ],
   },
-
   {
     id: "A29",
     panorama: "/A29.jpg",
@@ -214,7 +218,6 @@ export const nodes: Node[] = [
     sphereCorrection: { pan: "93.28deg" },
     links: [{ nodeId: "A28" }], // TODO!
   },
-
   {
     id: "A30",
     panorama: "/A30.jpg",
@@ -252,9 +255,8 @@ export const nodes: Node[] = [
     gps: [73.88248842100653, 15.39182861930748, 0],
     locations: ["CS Dept", "Stairs", "NAB Lawns"],
     sphereCorrection: { pan: "251.77deg" },
-    links: [], // TODO!
+    links: [{ nodeId: "A28" }], // TODO!
   },
-
   {
     id: "A34",
     panorama: "/A34.jpg",
@@ -289,7 +291,7 @@ export const nodes: Node[] = [
     gps: [73.882633, 15.391617, 0],
     locations: ["CS Dept", "NAB", "NAB Open Area"],
     sphereCorrection: { pan: "350.61deg" },
-    links: [{ nodeId: "A41" }, { nodeId: "A24" }, { nodeId: "PhyStart" }],
+    links: [{ nodeId: "A41" }, { nodeId: "A28" }, { nodeId: "PhyStart" }],
   },
   {
     id: "A41",
@@ -507,7 +509,7 @@ export const nodes: Node[] = [
       { nodeId: "AH2 / A Mess Roadside Entry" },
       { nodeId: "BITS Pilani Leaf Writing" },
       { nodeId: "A11" },
-      { nodeId: "AH1_corner" },
+      { nodeId: "AH1" },
     ],
   },
   {
@@ -693,7 +695,11 @@ export const nodes: Node[] = [
     gps: [73.87881537194276, 15.392379146733685, 0],
     locations: ["AH1"],
     sphereCorrection: { pan: "30deg" },
-    links: [{ nodeId: "AH1_corner" }, { nodeId: "AH1 Corner Central Lawn" }],
+    links: [
+      { nodeId: "AH1_corner" },
+      { nodeId: "AH1 Corner Central Lawn" },
+      { nodeId: "pu ins" },
+    ],
   },
   {
     id: "AH7 Lovers Lane",
@@ -764,7 +770,7 @@ export const nodes: Node[] = [
     gps: [73.88039783031077, 15.392800493684284, 0],
     locations: ["ic"],
     sphereCorrection: { pan: "-15deg" },
-    links: [],
+    links: [{ nodeId: "pragati bdome" }],
   },
   {
     id: "lt12",
@@ -809,7 +815,7 @@ export const nodes: Node[] = [
     gps: [73.88023160664639, 15.39288740373124, 0],
     locations: ["pragati bdome"],
     sphereCorrection: { pan: "109deg" },
-    links: [],
+    links: [{ nodeId: "ic" }, { nodeId: "pu" }],
   },
   {
     id: "audi front",
@@ -845,7 +851,7 @@ export const nodes: Node[] = [
     gps: [73.87948471750231, 15.392998677071093, 0],
     locations: ["pu ins"],
     sphereCorrection: { pan: "98deg" },
-    links: [],
+    links: [{ nodeId: "pu" }, { nodeId: "AH1" }],
   },
   {
     id: "workshop",
@@ -863,6 +869,6 @@ export const nodes: Node[] = [
     gps: [73.87971749038816, 15.392948600978555, 0],
     locations: ["pu"],
     sphereCorrection: { pan: "348deg" },
-    links: [],
+    links: [{ nodeId: "pragati bdome" }, { nodeId: "pu ins" }],
   },
 ];
