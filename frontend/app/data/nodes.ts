@@ -222,37 +222,42 @@ export const nodes: Node[] = [
     id: "A30",
     panorama: "/A30.jpg",
     caption: "CS Department 2nd Floor near right-side stairs, outside chambers",
-    gps: [73.8825713945877, 15.39182026028342, 0],
+    gps: [73.88251538686832, 15.391832432005776, 0],
     locations: ["CS Dept", "1st Floor", "Stairs", "Chambers"],
     sphereCorrection: { pan: "6.13deg" },
-    links: [{ nodeId: "A31" }, { nodeId: "A32" }, { nodeId: "A33" }], // TODO!
+    links: [
+      { nodeId: "A31" },
+      { nodeId: "A35" },
+      { nodeId: "A33" },
+      { nodeId: "A34" },
+    ], // TODO!
   },
 
   {
     id: "A31",
     panorama: "/A31.jpg",
     caption: "CS Department 2nd Floor near lift",
-    gps: [73.882516, 15.391824, 0],
+    gps: [73.88275891586838, 15.39182150898752, 0],
     locations: ["CS Dept", "2nd Floor", "Lift"],
     sphereCorrection: { pan: "182.35deg" },
-    links: [{ nodeId: "A30" }, { nodeId: "A32" }], // TODO!
+    links: [{ nodeId: "A30" }, { nodeId: "A32" }, { nodeId: "A37" }], // TODO!
   },
 
   {
     id: "A32",
     panorama: "/A32.jpg",
     caption: "CS Department 2nd Floor near chambers",
-    gps: [73.88267026307734, 15.391851573451262, 0],
+    gps: [73.88286888643314, 15.391793062908802, 0],
     locations: ["CS Dept", "2nd Floor", "Chambers"],
-    sphereCorrection: { pan: "2.59deg" },
-    links: [{ nodeId: "A30" }, { nodeId: "A31" }], // TODO!
+    sphereCorrection: { pan: "180deg" },
+    links: [{ nodeId: "A31" }], // TODO!
   },
 
   {
     id: "A33",
     panorama: "/A33.jpg",
     caption: "CS Department Right side stairs near NAB lawns",
-    gps: [73.88248842100653, 15.39182861930748, 0],
+    gps: [73.88247996614311, 15.39173617073971, 0],
     locations: ["CS Dept", "Stairs", "NAB Lawns"],
     sphereCorrection: { pan: "251.77deg" },
     links: [{ nodeId: "A28" }, { nodeId: "A30" }], // TODO!
@@ -263,26 +268,44 @@ export const nodes: Node[] = [
     caption: "CS Department 2nd floor Outer",
     gps: [73.88254, 15.39205, 0],
     locations: ["CS Dept", "Chambers", "Washroom"],
-    sphereCorrection: { pan: "15.5deg" },
-    links: [{ nodeId: "A36" }],
+    sphereCorrection: { pan: "105.5deg" },
+    links: [{ nodeId: "A36" }, { nodeId: "A30" }],
   },
   {
     id: "A35",
     panorama: "/A35.jpg",
     caption: "CS Department 2nd floor Chambers",
-    gps: [73.88233, 15.3922, 0],
+    gps: [73.88250290658553, 15.391830426563189, 0],
     locations: ["CS Dept", "Chambers", "HOD Office"],
-    sphereCorrection: { pan: "79.05deg" },
-    links: [{ nodeId: "A36" }],
+    sphereCorrection: { pan: "169.05deg" },
+    links: [{ nodeId: "A30" }, { nodeId: "A36" }],
   },
   {
     id: "A36",
     panorama: "/A36.jpg",
     caption: "CS Department 2nd floor Chambers D Spine end",
-    gps: [73.88187, 15.39189, 0],
+    gps: [73.88242363975628, 15.391997357387842, 0],
     locations: ["CS Dept", "Chambers", "D Spine"],
-    sphereCorrection: { pan: "79.05deg" },
+    sphereCorrection: { pan: "30.05deg" },
     links: [{ nodeId: "A34" }, { nodeId: "A35" }],
+  },
+  {
+    id: "A37",
+    panorama: "/A37.png",
+    caption: "CS Department 2nd floor DASH Side Chambers Lab",
+    gps: [73.88277232691286, 15.391712896666045, 0],
+    locations: ["CS Dept", "DASH", "Chambers"],
+    sphereCorrection: { pan: "275.05deg" },
+    links: [{ nodeId: "A31" }, { nodeId: "A38" }],
+  },
+  {
+    id: "A38",
+    panorama: "/A38.jpg",
+    caption: "CS Department 2nd floor DASH Lab",
+    gps: [73.88280183121071, 15.39161462832634, 0],
+    locations: ["CS Dept", "DASH"],
+    sphereCorrection: { pan: "90.05deg" },
+    links: [{ nodeId: "A37" }, { nodeId: "PhyStart" }],
   },
   {
     id: "A40",
@@ -309,7 +332,7 @@ export const nodes: Node[] = [
     gps: [73.88269598479911, 15.3914646315676, 0],
     locations: ["Phy Dept", "NAB Stairs"],
     sphereCorrection: { pan: "108.12deg" },
-    links: [{ nodeId: "A40" }, { nodeId: "PhyTop1" }],
+    links: [{ nodeId: "A40" }, { nodeId: "PhyTop1" }, { nodeId: "A38" }],
   },
   {
     id: "PhyTop1",
