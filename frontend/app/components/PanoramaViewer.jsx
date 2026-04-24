@@ -9,10 +9,19 @@ import "@photo-sphere-viewer/plan-plugin/index.css";
 import "leaflet/dist/leaflet.css";
 import { nodes } from "../data/nodes";
 
+// ─── "Your location" sentinel ──────────────────────────────────────────────
+const YOUR_LOCATION_ITEM = {
+  id: "__your_location__",
+  caption: "Your location",
+  locations: ["Current view in the tour"],
+  isYourLocation: true,
+};
+
 export default function PanoramaViewer() {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const vtRef = useRef(null);
+  const userGpsRef = useRef(null); // { lat, lon } once we have a fix
 
   // --- Search state ---
   const [query, setQuery] = useState("");
@@ -27,7 +36,7 @@ export default function PanoramaViewer() {
   const [activeDirField, setActiveDirField] = useState(null); // 'from' | 'to'
   const [dirResults, setDirResults] = useState([]);
   const [path, setPath] = useState([]); // active path node IDs
-  const [hasSearched, setHasSearched] = useState(false); // only true after clicking Go
+  const [hasSearched, setHasSearched] = useState(false);
 
   // --- Fuse search ---
   const fuse = useMemo(
@@ -49,12 +58,11 @@ export default function PanoramaViewer() {
     return fuse.search(query).map((r) => r.item);
   }, [query, showResults, fuse]);
 
-  // --- Dijkstra pathfinding (weighted by GPS Euclidean distance) ---
+  // --- Dijkstra pathfinding ---
   const findPath = useCallback((startId, endId) => {
     if (!startId || !endId || startId === endId) return [];
     const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
-    // GPS distance in arbitrary units (lon/lat degrees treated as flat — fine for a campus)
     const gpsDist = (aId, bId) => {
       const a = nodeMap.get(aId);
       const b = nodeMap.get(bId);
@@ -64,14 +72,13 @@ export default function PanoramaViewer() {
       return Math.sqrt(dLon * dLon + dLat * dLat);
     };
 
-    const dist = new Map();     // nodeId → best cost so far
-    const prev = new Map();     // nodeId → previous nodeId
+    const dist = new Map();
+    const prev = new Map();
     const visited = new Set();
 
     for (const n of nodes) dist.set(n.id, Infinity);
     dist.set(startId, 0);
 
-    // Simple priority queue using a sorted array (campus is small enough)
     const pq = [{ id: startId, cost: 0 }];
 
     while (pq.length > 0) {
@@ -106,35 +113,47 @@ export default function PanoramaViewer() {
     return path[0] === startId ? path : [];
   }, []);
 
-  // Build the node list to hand to setNodes, with blue arrowStyle on path links
-  const buildPathNodes = useCallback(
-    (activePath) => {
-      if (activePath.length < 2) return nodes;
-      return nodes.map((node) => {
-        const idx = activePath.indexOf(node.id);
-        if (idx !== -1 && idx < activePath.length - 1) {
-          const nextId = activePath[idx + 1];
-          return {
-            ...node,
-            links: node.links.map((link) =>
-              link.nodeId === nextId
-                ? {
-                  ...link,
-                  arrowStyle: {
-                    // Using style dict — the only supported way in this plugin
-                    style: { color: "#2563eb" },
-                    className: "path-arrow",
-                  },
-                }
-                : link
-            ),
-          };
-        }
-        return node;
-      });
-    },
-    []
-  );
+  // Build the node list with blue arrowStyle on path links
+  const buildPathNodes = useCallback((activePath) => {
+    if (activePath.length < 2) return nodes;
+    return nodes.map((node) => {
+      const idx = activePath.indexOf(node.id);
+      if (idx !== -1 && idx < activePath.length - 1) {
+        const nextId = activePath[idx + 1];
+        return {
+          ...node,
+          links: node.links.map((link) =>
+            link.nodeId === nextId
+              ? {
+                ...link,
+                arrowStyle: {
+                  style: { color: "#2563eb" },
+                  className: "path-arrow",
+                },
+              }
+              : link
+          ),
+        };
+      }
+      return node;
+    });
+  }, []);
+
+  // --- Find nearest campus node to a GPS coord ---
+  const findNearestNode = useCallback((lat, lon) => {
+    let best = null;
+    let bestDist = Infinity;
+    for (const n of nodes) {
+      const dLon = n.gps[0] - lon;
+      const dLat = n.gps[1] - lat;
+      const d = Math.sqrt(dLon * dLon + dLat * dLat);
+      if (d < bestDist) {
+        bestDist = d;
+        best = n;
+      }
+    }
+    return best;
+  }, []);
 
   // --- Viewer setup (runs once) ---
   useEffect(() => {
@@ -189,6 +208,9 @@ export default function PanoramaViewer() {
       if (navigator.geolocation && leafletMap) {
         let gpsDone = false;
         const placeMarker = (latlng) => {
+          // Store the GPS fix for "Your location" feature
+          userGpsRef.current = { lat: latlng.lat, lon: latlng.lng };
+
           if (!gpsMarker) {
             gpsMarker = L.circleMarker(latlng, {
               radius: 7,
@@ -235,6 +257,23 @@ export default function PanoramaViewer() {
     };
   }, []);
 
+  // --- Build direction results (with "Your location" prepended when no text) ---
+  const buildDirResults = useCallback(
+    (value) => {
+      const fuseHits = value.trim()
+        ? fuse.search(value).map((r) => r.item)
+        : [];
+      return fuseHits;
+    },
+    [fuse]
+  );
+
+  // Results shown in the dropdown — always prepend "Your location"
+  const dirResultsWithYours = useMemo(() => {
+    if (!activeDirField) return [];
+    return [YOUR_LOCATION_ITEM, ...dirResults];
+  }, [activeDirField, dirResults]);
+
   // --- Directions search ---
   const handleDirSearch = (value, field) => {
     if (field === "from") {
@@ -244,21 +283,32 @@ export default function PanoramaViewer() {
       setToQuery(value);
       setToNode(null);
     }
-    if (value.trim()) {
-      setDirResults(fuse.search(value).map((r) => r.item));
-    } else {
-      setDirResults([]);
-    }
+    setDirResults(buildDirResults(value));
     setActiveDirField(field);
   };
 
+  // --- Handle selecting a direction result ---
   const selectDirResult = (node) => {
-    if (activeDirField === "from") {
-      setFromNode(node);
-      setFromQuery(node.caption);
+    if (node.isYourLocation) {
+      const currentId = vtRef.current?.currentNode?.id;
+      const current = nodes.find((n) => n.id === currentId);
+      if (current) {
+        if (activeDirField === "from") {
+          setFromNode(current);
+          setFromQuery("Your location");
+        } else {
+          setToNode(current);
+          setToQuery("Your location");
+        }
+      }
     } else {
-      setToNode(node);
-      setToQuery(node.caption);
+      if (activeDirField === "from") {
+        setFromNode(node);
+        setFromQuery(node.caption);
+      } else {
+        setToNode(node);
+        setToQuery(node.caption);
+      }
     }
     setDirResults([]);
     setActiveDirField(null);
@@ -337,9 +387,10 @@ export default function PanoramaViewer() {
 
         @media (max-width: 600px) {
           .psv-plan-container {
-            width: 130px !important;
-            height: 130px !important;
-            bottom: 70px !important;
+            width: 100px !important;
+            height: 100px !important;
+            bottom: 60px !important;
+            right: 8px !important;
           }
           .map-ui {
             width: calc(100vw - 24px) !important;
@@ -377,7 +428,7 @@ export default function PanoramaViewer() {
         .result-item {
           display: block;
           width: 100%;
-          padding: 10px 12px;
+          padding: 9px 12px;
           text-align: left;
           background: none;
           border: none;
@@ -387,6 +438,11 @@ export default function PanoramaViewer() {
           transition: background 0.12s;
         }
         .result-item:hover { background: #f0f4ff; }
+        .result-item.your-location-item {
+          border-bottom: 1px solid #f0f0f0;
+          margin-bottom: 2px;
+        }
+        .result-item.your-location-item:hover { background: #f0fff4; }
 
         .blue-btn {
           background: #2563eb;
@@ -434,12 +490,16 @@ export default function PanoramaViewer() {
           borderRadius: 16,
           boxShadow: "0 2px 16px rgba(0,0,0,0.18)",
           fontFamily: "'Inter', sans-serif",
-          overflow: "visible",
+          // KEY: constrain height so results cannot push below viewport
+          maxHeight: "calc(100dvh - 32px)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         {/* ── Search mode ── */}
         {!directionsMode && (
-          <div style={{ padding: "10px 12px", display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ padding: "10px 12px", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
             {/* Search icon */}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <circle cx="11" cy="11" r="8" />
@@ -468,13 +528,41 @@ export default function PanoramaViewer() {
                 <polygon points="3 11 22 2 13 21 11 13 3 11" />
               </svg>
             </button>
+            {/* Contributors button */}
+            <a
+              href="/contributors"
+              title="Contributors"
+              style={{
+                flexShrink: 0,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 8,
+                padding: 6,
+                transition: "background 0.12s",
+                color: "#555",
+                textDecoration: "none",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "#f0f0f0"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "none"}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </a>
           </div>
         )}
 
-        {/* ── Search results dropdown ── */}
+        {/* ── Search results dropdown (scrollable, contained within card) ── */}
         {!directionsMode && searchResults.length > 0 && (
-          <div style={{ borderTop: "1px solid #f0f0f0", paddingBottom: 6 }}>
-            {searchResults.slice(0, 6).map((node) => (
+          <div style={{ borderTop: "1px solid #f0f0f0", overflowY: "auto", flexShrink: 1, paddingBottom: 6 }}>
+            {searchResults.slice(0, 8).map((node) => (
               <button
                 key={node.id}
                 className="result-item"
@@ -489,9 +577,9 @@ export default function PanoramaViewer() {
 
         {/* ── Directions mode ── */}
         {directionsMode && (
-          <div style={{ padding: "12px 14px 14px" }}>
+          <div style={{ padding: "12px 14px 14px", overflowY: "auto", display: "flex", flexDirection: "column", flexShrink: 1 }}>
             {/* Header row */}
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 12, gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 12, gap: 6, flexShrink: 0 }}>
               <button className="icon-btn" onClick={closeDirections} title="Back">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M19 12H5M12 5l-7 7 7 7" />
@@ -508,7 +596,7 @@ export default function PanoramaViewer() {
             </div>
 
             {/* From / To fields */}
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
               {/* Dot line decoration */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 14, gap: 0 }}>
                 <div style={{ width: 10, height: 10, borderRadius: "50%", border: "2.5px solid #2563eb", background: "#fff" }} />
@@ -521,8 +609,11 @@ export default function PanoramaViewer() {
                   className="map-input"
                   value={fromQuery}
                   onChange={(e) => handleDirSearch(e.target.value, "from")}
-                  onFocus={() => { setActiveDirField("from"); if (fromQuery) setDirResults(fuse.search(fromQuery).map(r => r.item)); }}
-                  onBlur={() => setTimeout(() => { setActiveDirField(null); setDirResults([]); }, 180)}
+                  onFocus={() => {
+                    setActiveDirField("from");
+                    setDirResults(buildDirResults(fromQuery));
+                  }}
+                  onBlur={() => setTimeout(() => { setActiveDirField(null); setDirResults([]); }, 200)}
                   placeholder="Starting point"
                   autoComplete="off"
                 />
@@ -530,32 +621,65 @@ export default function PanoramaViewer() {
                   className="map-input"
                   value={toQuery}
                   onChange={(e) => handleDirSearch(e.target.value, "to")}
-                  onFocus={() => { setActiveDirField("to"); if (toQuery) setDirResults(fuse.search(toQuery).map(r => r.item)); }}
-                  onBlur={() => setTimeout(() => { setActiveDirField(null); setDirResults([]); }, 180)}
+                  onFocus={() => {
+                    setActiveDirField("to");
+                    setDirResults(buildDirResults(toQuery));
+                  }}
+                  onBlur={() => setTimeout(() => { setActiveDirField(null); setDirResults([]); }, 200)}
                   placeholder="Destination"
                   autoComplete="off"
                 />
               </div>
             </div>
 
-            {/* Dir results */}
-            {dirResults.length > 0 && activeDirField && (
-              <div style={{ marginTop: 6, borderTop: "1px solid #f0f0f0", paddingTop: 4, maxHeight: 220, overflowY: "auto" }}>
-                {dirResults.slice(0, 6).map((node) => (
-                  <button
-                    key={node.id}
-                    className="result-item"
-                    onMouseDown={() => selectDirResult(node)}
-                  >
-                    <div style={{ fontWeight: 500, fontSize: 13, color: "#111" }}>{node.caption}</div>
-                    <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{node.locations.slice(0, 3).join(" · ")}</div>
-                  </button>
-                ))}
+            {/* Dir results — always shows "Your location" first */}
+            {dirResultsWithYours.length > 0 && activeDirField && (
+              <div style={{ marginTop: 6, borderTop: "1px solid #f0f0f0", paddingTop: 4, overflowY: "auto", maxHeight: 220, flexShrink: 1 }}>
+                {dirResultsWithYours.slice(0, 7).map((node) =>
+                  node.isYourLocation ? (
+                    <button
+                      key="your-location"
+                      className="result-item your-location-item"
+                      onMouseDown={() => selectDirResult(node)}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 24,
+                          height: 24,
+                          borderRadius: "50%",
+                          background: "#dbeafe",
+                          flexShrink: 0
+                        }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 00-18 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                          </svg>
+                        </span>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: "#1d4ed8" }}>Your location</div>
+                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>Current view in the tour</div>
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    <button
+                      key={node.id}
+                      className="result-item"
+                      onMouseDown={() => selectDirResult(node)}
+                    >
+                      <div style={{ fontWeight: 500, fontSize: 13, color: "#111" }}>{node.caption}</div>
+                      <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{node.locations.slice(0, 3).join(" · ")}</div>
+                    </button>
+                  )
+                )}
               </div>
             )}
 
             {/* Go button row */}
-            <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <button
                 className="blue-btn"
                 onClick={handleGo}
@@ -576,7 +700,7 @@ export default function PanoramaViewer() {
 
             {/* Route summary */}
             {path.length > 0 && (
-              <div style={{ marginTop: 12, padding: "10px 12px", background: "#eff6ff", borderRadius: 10, borderLeft: "3px solid #2563eb" }}>
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "#eff6ff", borderRadius: 10, borderLeft: "3px solid #2563eb", flexShrink: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
                   Route found · {path.length - 1} stop{path.length - 1 !== 1 ? "s" : ""}
                 </div>
@@ -587,7 +711,7 @@ export default function PanoramaViewer() {
             )}
 
             {hasSearched && path.length === 0 && fromNode && toNode && (
-              <div style={{ marginTop: 10, padding: "8px 12px", background: "#fef2f2", borderRadius: 8 }}>
+              <div style={{ marginTop: 10, padding: "8px 12px", background: "#fef2f2", borderRadius: 8, flexShrink: 0 }}>
                 <div style={{ fontSize: 12, color: "#dc2626" }}>No route found between these locations.</div>
               </div>
             )}
