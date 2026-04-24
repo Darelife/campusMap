@@ -10,10 +10,10 @@ import "leaflet/dist/leaflet.css";
 import { nodes } from "../data/nodes";
 
 // ─── "Your location" sentinel ──────────────────────────────────────────────
-const YOUR_LOCATION_ITEM = {
-  id: "__your_location__",
-  caption: "Your location",
-  locations: ["Current view in the tour"],
+const YOUR_IMAGE_ITEM = {
+  id: "__your_image__",
+  caption: "Your Image",
+  locations: ["Current panorama you are viewing"],
   isYourLocation: true,
 };
 
@@ -21,7 +21,8 @@ export default function PanoramaViewer() {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const vtRef = useRef(null);
-  const userGpsRef = useRef(null); // { lat, lon } once we have a fix
+  const userGpsRef = useRef(null); // { lat, lon } once GPS fix arrives
+  const currentNodeRef = useRef(null); // always the live panorama node
 
   // --- Search state ---
   const [query, setQuery] = useState("");
@@ -34,6 +35,7 @@ export default function PanoramaViewer() {
   const [fromNode, setFromNode] = useState(null);
   const [toNode, setToNode] = useState(null);
   const [activeDirField, setActiveDirField] = useState(null); // 'from' | 'to'
+  const activeDirFieldRef = useRef(null); // mirrors state — immune to stale closures
   const [dirResults, setDirResults] = useState([]);
   const [path, setPath] = useState([]); // active path node IDs
   const [hasSearched, setHasSearched] = useState(false);
@@ -202,6 +204,16 @@ export default function PanoramaViewer() {
       viewerRef.current = viewer;
       vtRef.current = viewer.getPlugin(VirtualTourPlugin);
 
+      // Keep currentNodeRef in sync — the ONLY reliable way to read the node
+      // at arbitrary times (e.g. when the user clicks "Your Image").
+      vtRef.current.addEventListener('node-changed', (e) => {
+        currentNodeRef.current = e.node;
+      });
+      // Seed the ref once the viewer is ready (first node already loaded)
+      viewer.addEventListener('ready', () => {
+        currentNodeRef.current = vtRef.current.currentNode ?? null;
+      }, { once: true });
+
       // --- Live GPS marker ---
       const planPlugin = viewer.getPlugin(PlanPlugin);
       leafletMap = planPlugin.getLeaflet();
@@ -268,10 +280,10 @@ export default function PanoramaViewer() {
     [fuse]
   );
 
-  // Results shown in the dropdown — always prepend "Your location"
+  // Results shown in the dropdown — always prepend "Your Image"
   const dirResultsWithYours = useMemo(() => {
     if (!activeDirField) return [];
-    return [YOUR_LOCATION_ITEM, ...dirResults];
+    return [YOUR_IMAGE_ITEM, ...dirResults];
   }, [activeDirField, dirResults]);
 
   // --- Directions search ---
@@ -284,25 +296,31 @@ export default function PanoramaViewer() {
       setToNode(null);
     }
     setDirResults(buildDirResults(value));
+    activeDirFieldRef.current = field;
     setActiveDirField(field);
   };
 
   // --- Handle selecting a direction result ---
+  // NOTE: reads activeDirFieldRef (not state) to avoid stale closure bugs
+  // that occur when onMouseDown + onBlur fire in close succession.
   const selectDirResult = (node) => {
+    const field = activeDirFieldRef.current; // always the live value
     if (node.isYourLocation) {
-      const currentId = vtRef.current?.currentNode?.id;
-      const current = nodes.find((n) => n.id === currentId);
+      // Use the always-current ref — never reads stale PSV plugin state
+      const current = currentNodeRef.current;
       if (current) {
-        if (activeDirField === "from") {
+        if (field === "from") {
           setFromNode(current);
-          setFromQuery("Your location");
+          setFromQuery(current.caption);
         } else {
           setToNode(current);
-          setToQuery("Your location");
+          setToQuery(current.caption);
         }
+      } else {
+        console.warn('[YourImage] currentNodeRef is null — node-changed event not yet fired?');
       }
     } else {
-      if (activeDirField === "from") {
+      if (field === "from") {
         setFromNode(node);
         setFromQuery(node.caption);
       } else {
@@ -310,6 +328,7 @@ export default function PanoramaViewer() {
         setToQuery(node.caption);
       }
     }
+    activeDirFieldRef.current = null;
     setDirResults([]);
     setActiveDirField(null);
   };
@@ -334,6 +353,7 @@ export default function PanoramaViewer() {
     setPath([]);
     setHasSearched(false);
     setDirResults([]);
+    activeDirFieldRef.current = null;
     setActiveDirField(null);
     if (vtRef.current) {
       const currentId = vtRef.current.currentNode?.id;
@@ -346,9 +366,8 @@ export default function PanoramaViewer() {
     setDirectionsMode(true);
     setShowResults(false);
     setQuery("");
-    // Pre-fill From with current node
-    const currentId = vtRef.current?.currentNode?.id;
-    const current = nodes.find((n) => n.id === currentId);
+    // Pre-fill From with current node using the reliable ref
+    const current = currentNodeRef.current;
     if (current) {
       setFromNode(current);
       setFromQuery(current.caption);
@@ -610,10 +629,11 @@ export default function PanoramaViewer() {
                   value={fromQuery}
                   onChange={(e) => handleDirSearch(e.target.value, "from")}
                   onFocus={() => {
+                    activeDirFieldRef.current = "from";
                     setActiveDirField("from");
                     setDirResults(buildDirResults(fromQuery));
                   }}
-                  onBlur={() => setTimeout(() => { setActiveDirField(null); setDirResults([]); }, 200)}
+                  onBlur={() => setTimeout(() => { activeDirFieldRef.current = null; setActiveDirField(null); setDirResults([]); }, 200)}
                   placeholder="Starting point"
                   autoComplete="off"
                 />
@@ -622,10 +642,11 @@ export default function PanoramaViewer() {
                   value={toQuery}
                   onChange={(e) => handleDirSearch(e.target.value, "to")}
                   onFocus={() => {
+                    activeDirFieldRef.current = "to";
                     setActiveDirField("to");
                     setDirResults(buildDirResults(toQuery));
                   }}
-                  onBlur={() => setTimeout(() => { setActiveDirField(null); setDirResults([]); }, 200)}
+                  onBlur={() => setTimeout(() => { activeDirFieldRef.current = null; setActiveDirField(null); setDirResults([]); }, 200)}
                   placeholder="Destination"
                   autoComplete="off"
                 />
@@ -654,13 +675,13 @@ export default function PanoramaViewer() {
                           flexShrink: 0
                         }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 00-18 0z" />
-                            <circle cx="12" cy="10" r="3" />
+                            <path d="M12 2C8.686 2 6 4.686 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.314-2.686-6-6-6z" />
+                            <circle cx="12" cy="8" r="2.5" />
                           </svg>
                         </span>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: "#1d4ed8" }}>Your location</div>
-                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>Current view in the tour</div>
+                          <div style={{ fontWeight: 600, fontSize: 13, color: "#1d4ed8" }}>Your Image</div>
+                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>Current panorama you are viewing</div>
                         </div>
                       </div>
                     </button>
