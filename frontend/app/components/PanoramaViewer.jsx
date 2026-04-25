@@ -217,6 +217,8 @@ export default function PanoramaViewer() {
       viewer = new Viewer({
         container: containerRef.current,
         navbar: false,
+        moveSpeed: 2,
+        mousewheelSpeed: 2,
         plugins: [
           VirtualTourPlugin.withConfig({
             positionMode: "gps",
