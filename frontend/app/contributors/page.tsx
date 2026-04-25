@@ -75,18 +75,18 @@ const CONTRIBUTORS_2025_SEM2 = [
     github: "https://github.com/letmebeblank",
   },
   {
-    name: "Ankit Sharma",
+    name: "Suryansh Ray",
     bitsId: "",
     role: "Data Collection",
     description: "Helped in gathering the images.",
     github: "",
   },
   {
-    name: "Suryansh Ray",
-    bitsId: "",
+    name: "Ankit Sharma",
+    bitsId: "2025A1PS1514G",
     role: "Data Collection",
     description: "Helped in gathering the images.",
-    github: "",
+    github: "ankitsharma",
   },
 ];
 
