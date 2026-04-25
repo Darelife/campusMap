@@ -17,12 +17,21 @@ const YOUR_IMAGE_ITEM = {
   isYourLocation: true,
 };
 
+// ─── Detect mobile at module level (SSR-safe) ─────────────────────────────
+const isMobileQuery = "(max-width: 600px)";
+
 export default function PanoramaViewer() {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
   const vtRef = useRef(null);
+  const planPluginRef = useRef(null);
   const userGpsRef = useRef(null); // { lat, lon } once GPS fix arrives
   const currentNodeRef = useRef(null); // always the live panorama node
+
+  // --- Mobile state ---
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState(false); // search/dir panel open on mobile
+  const [mapVisible, setMapVisible] = useState(true); // plan plugin visibility
 
   // --- Search state ---
   const [query, setQuery] = useState("");
@@ -39,6 +48,35 @@ export default function PanoramaViewer() {
   const [dirResults, setDirResults] = useState([]);
   const [path, setPath] = useState([]); // active path node IDs
   const [hasSearched, setHasSearched] = useState(false);
+
+  // --- Detect mobile on mount + resize ---
+  useEffect(() => {
+    const mql = window.matchMedia(isMobileQuery);
+    const update = () => {
+      const mobile = mql.matches;
+      setIsMobile(mobile);
+      if (mobile) {
+        setMapVisible(false); // start with map hidden on mobile
+      }
+    };
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+
+  // --- Toggle map visibility ---
+  const toggleMap = useCallback(() => {
+    const plugin = planPluginRef.current;
+    if (!plugin) return;
+    setMapVisible((prev) => {
+      if (prev) {
+        plugin.close();
+      } else {
+        plugin.open();
+      }
+      return !prev;
+    });
+  }, []);
 
   // --- Fuse search ---
   const fuse = useMemo(
@@ -166,6 +204,8 @@ export default function PanoramaViewer() {
     let gpsMarker = null;
     let leafletMap = null;
 
+    const mobile = window.matchMedia(isMobileQuery).matches;
+
     (async () => {
       const { Viewer } = await import("@photo-sphere-viewer/core");
       const { VirtualTourPlugin } = await import(
@@ -186,6 +226,7 @@ export default function PanoramaViewer() {
           }),
           PlanPlugin.withConfig({
             coordinates: [15.39239, 73.879949],
+            visibleOnLoad: !mobile, // hide map by default on mobile
             layers: [
               {
                 urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -204,6 +245,14 @@ export default function PanoramaViewer() {
       viewerRef.current = viewer;
       vtRef.current = viewer.getPlugin(VirtualTourPlugin);
 
+      const planPlugin = viewer.getPlugin(PlanPlugin);
+      planPluginRef.current = planPlugin;
+
+      // Sync our React state when the plugin is opened/closed via its own built-in button
+      planPlugin.addEventListener('view-changed', (e) => {
+        setMapVisible(e.view !== 'closed');
+      });
+
       // Keep currentNodeRef in sync — the ONLY reliable way to read the node
       // at arbitrary times (e.g. when the user clicks "Your Image").
       vtRef.current.addEventListener('node-changed', (e) => {
@@ -215,7 +264,6 @@ export default function PanoramaViewer() {
       }, { once: true });
 
       // --- Live GPS marker ---
-      const planPlugin = viewer.getPlugin(PlanPlugin);
       leafletMap = planPlugin.getLeaflet();
       if (navigator.geolocation && leafletMap) {
         let gpsDone = false;
@@ -342,6 +390,8 @@ export default function PanoramaViewer() {
     if (vtRef.current) {
       vtRef.current.setNodes(buildPathNodes(newPath), fromNode.id);
     }
+    // Collapse mobile panel after getting directions so user sees the arrows
+    if (isMobile) setMobileExpanded(false);
   };
 
   // --- Reset directions ---
@@ -385,9 +435,13 @@ export default function PanoramaViewer() {
     vtRef.current?.setCurrentNode(node.id);
     setQuery("");
     setShowResults(false);
+    if (isMobile) setMobileExpanded(false);
   };
 
   const canGo = fromNode && toNode;
+
+  // On mobile, show a route-active banner in the collapsed fab row
+  const hasActiveRoute = path.length > 0;
 
   return (
     <>
@@ -406,18 +460,20 @@ export default function PanoramaViewer() {
 
         @media (max-width: 600px) {
           .psv-plan-container {
-            width: 100px !important;
-            height: 100px !important;
-            bottom: 60px !important;
-            right: 8px !important;
-          }
-          .map-ui {
-            width: calc(100vw - 24px) !important;
-            left: 12px !important;
+            width: 140px !important;
+            height: 110px !important;
+            bottom: 16px !important;
+            left: 16px !important;
+            right: auto !important;
           }
         }
 
-        /* Blue path arrows */
+        /* Hide PlanPlugin's own built-in close/collapse button — we provide our own toggle */
+        .psv-plan-close-button,
+        .psv-plan__toggle {
+          display: none !important;
+        }
+
         .path-arrow svg {
           fill: #2563eb !important;
           filter: drop-shadow(0 0 6px #2563eb99);
@@ -494,251 +550,671 @@ export default function PanoramaViewer() {
           color: #555;
         }
         .icon-btn:hover { background: #f0f0f0; }
+
+        /* ── Mobile floating action buttons ── */
+        .mobile-fab {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.22);
+          transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .mobile-fab:active {
+          transform: scale(0.93);
+        }
+
+        /* ── Mobile bottom sheet ── */
+        .mobile-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.35);
+          z-index: 99;
+          animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .mobile-sheet {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          z-index: 100;
+          background: #fff;
+          border-radius: 20px 20px 0 0;
+          box-shadow: 0 -4px 30px rgba(0,0,0,0.18);
+          max-height: 80dvh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          animation: slideUp 0.25s ease;
+          font-family: 'Inter', sans-serif;
+        }
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .mobile-sheet-handle {
+          width: 36px;
+          height: 4px;
+          border-radius: 2px;
+          background: #d1d5db;
+          margin: 10px auto 6px;
+          flex-shrink: 0;
+        }
+
+        /* ── Mobile route banner (shown when collapsed + route active) ── */
+        .mobile-route-banner {
+          position: fixed;
+          bottom: 80px;
+          left: 16px;
+          right: 16px;
+          z-index: 10;
+          background: #eff6ff;
+          border: 1.5px solid #bfdbfe;
+          border-radius: 14px;
+          padding: 10px 14px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          box-shadow: 0 2px 12px rgba(37,99,235,0.15);
+          font-family: 'Inter', sans-serif;
+          animation: fadeIn 0.2s ease;
+        }
       `}</style>
 
-      {/* ── Main UI card ── */}
-      <div
-        className="map-ui"
-        style={{
-          position: "absolute",
-          top: 16,
-          left: 16,
-          zIndex: 10,
-          width: 320,
-          background: "#fff",
-          borderRadius: 16,
-          boxShadow: "0 2px 16px rgba(0,0,0,0.18)",
-          fontFamily: "'Inter', sans-serif",
-          // KEY: constrain height so results cannot push below viewport
-          maxHeight: "calc(100dvh - 32px)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {/* ── Search mode ── */}
-        {!directionsMode && (
-          <div style={{ padding: "10px 12px", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-            {/* Search icon */}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              className="map-input"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setShowResults(true);
-              }}
-              onFocus={() => setShowResults(true)}
-              onBlur={() => setTimeout(() => setShowResults(false), 150)}
-              placeholder="Search campus..."
-              style={{ background: "transparent", border: "none", borderRadius: 0, padding: "4px 0", fontSize: 15 }}
-            />
-            {/* Directions button */}
-            <button
-              className="icon-btn"
-              onClick={openDirections}
-              title="Get directions"
-              style={{ flexShrink: 0 }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="3 11 22 2 13 21 11 13 3 11" />
-              </svg>
-            </button>
-            {/* Contributors button */}
-            <a
-              href="/contributors"
-              title="Contributors"
-              style={{
-                flexShrink: 0,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 8,
-                padding: 6,
-                transition: "background 0.12s",
-                color: "#555",
-                textDecoration: "none",
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "#f0f0f0"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "none"}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </a>
-          </div>
-        )}
-
-        {/* ── Search results dropdown (scrollable, contained within card) ── */}
-        {!directionsMode && searchResults.length > 0 && (
-          <div style={{ borderTop: "1px solid #f0f0f0", overflowY: "auto", flexShrink: 1, paddingBottom: 6 }}>
-            {searchResults.slice(0, 8).map((node) => (
+      {/* ═══════════════════════════════════════════════════════════════════
+           MOBILE LAYOUT
+         ═══════════════════════════════════════════════════════════════════ */}
+      {isMobile && (
+        <>
+          {/* ── Floating action buttons (top-right) ── */}
+          {!mobileExpanded && (
+            <div style={{
+              position: "fixed",
+              top: 16,
+              right: 16,
+              zIndex: 10,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}>
+              {/* Search FAB */}
               <button
-                key={node.id}
-                className="result-item"
-                onMouseDown={() => handleSearchSelect(node)}
+                className="mobile-fab"
+                style={{ background: "#fff" }}
+                onClick={() => { setMobileExpanded(true); setDirectionsMode(false); }}
+                title="Search"
               >
-                <div style={{ fontWeight: 500, fontSize: 14, color: "#111" }}>{node.caption}</div>
-                <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>{node.locations.slice(0, 3).join(" · ")}</div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* ── Directions mode ── */}
-        {directionsMode && (
-          <div style={{ padding: "12px 14px 14px", overflowY: "auto", display: "flex", flexDirection: "column", flexShrink: 1 }}>
-            {/* Header row */}
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 12, gap: 6, flexShrink: 0 }}>
-              <button className="icon-btn" onClick={closeDirections} title="Back">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 12H5M12 5l-7 7 7 7" />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
                 </svg>
               </button>
-              <span style={{ fontWeight: 600, fontSize: 15, color: "#111" }}>Directions</span>
-              {path.length > 0 && (
-                <button className="icon-btn" onClick={handleReset} title="Clear route" style={{ marginLeft: "auto" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 6L6 18M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+
+              {/* Directions FAB */}
+              <button
+                className="mobile-fab"
+                style={{ background: "#2563eb" }}
+                onClick={() => { setMobileExpanded(true); openDirections(); }}
+                title="Directions"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                </svg>
+              </button>
+
+              {/* Map toggle FAB */}
+              <button
+                className="mobile-fab"
+                style={{ background: mapVisible ? "#10b981" : "#fff" }}
+                onClick={toggleMap}
+                title={mapVisible ? "Hide map" : "Show map"}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={mapVisible ? "#fff" : "#555"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                  <line x1="8" y1="2" x2="8" y2="18" />
+                  <line x1="16" y1="6" x2="16" y2="22" />
+                </svg>
+              </button>
+
+              {/* Contributors FAB */}
+              <a
+                href="/contributors"
+                className="mobile-fab"
+                style={{ background: "#fff", textDecoration: "none" }}
+                title="Contributors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </a>
             </div>
+          )}
 
-            {/* From / To fields */}
-            <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-              {/* Dot line decoration */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 14, gap: 0 }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", border: "2.5px solid #2563eb", background: "#fff" }} />
-                <div style={{ width: 2, height: 28, background: "#d1d5db" }} />
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2563eb" }} />
+          {/* ── Route active banner (collapsed state) ── */}
+          {!mobileExpanded && hasActiveRoute && (
+            <div className="mobile-route-banner" onClick={() => { setMobileExpanded(true); setDirectionsMode(true); }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: "50%",
+                background: "#2563eb", display: "flex",
+                alignItems: "center", justifyContent: "center", flexShrink: 0
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                </svg>
               </div>
-
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                <input
-                  className="map-input"
-                  value={fromQuery}
-                  onChange={(e) => handleDirSearch(e.target.value, "from")}
-                  onFocus={() => {
-                    activeDirFieldRef.current = "from";
-                    setActiveDirField("from");
-                    setDirResults(buildDirResults(fromQuery));
-                  }}
-                  onBlur={() => setTimeout(() => { activeDirFieldRef.current = null; setActiveDirField(null); setDirResults([]); }, 200)}
-                  placeholder="Starting point"
-                  autoComplete="off"
-                />
-                <input
-                  className="map-input"
-                  value={toQuery}
-                  onChange={(e) => handleDirSearch(e.target.value, "to")}
-                  onFocus={() => {
-                    activeDirFieldRef.current = "to";
-                    setActiveDirField("to");
-                    setDirResults(buildDirResults(toQuery));
-                  }}
-                  onBlur={() => setTimeout(() => { activeDirFieldRef.current = null; setActiveDirField(null); setDirResults([]); }, 200)}
-                  placeholder="Destination"
-                  autoComplete="off"
-                />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
+                  Route active · {path.length - 1} stop{path.length - 1 !== 1 ? "s" : ""}
+                </div>
+                <div style={{ fontSize: 11, color: "#3b82f6" }}>Follow the blue arrows</div>
               </div>
+              <button
+                className="icon-btn"
+                onClick={(e) => { e.stopPropagation(); handleReset(); closeDirections(); }}
+                style={{ background: "#dbeafe", borderRadius: "50%", width: 32, height: 32, padding: 0 }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
             </div>
+          )}
 
-            {/* Dir results — always shows "Your location" first */}
-            {dirResultsWithYours.length > 0 && activeDirField && (
-              <div style={{ marginTop: 6, borderTop: "1px solid #f0f0f0", paddingTop: 4, overflowY: "auto", maxHeight: 220, flexShrink: 1 }}>
-                {dirResultsWithYours.slice(0, 7).map((node) =>
-                  node.isYourLocation ? (
-                    <button
-                      key="your-location"
-                      className="result-item your-location-item"
-                      onMouseDown={() => selectDirResult(node)}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: 24,
-                          height: 24,
-                          borderRadius: "50%",
-                          background: "#dbeafe",
-                          flexShrink: 0
-                        }}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 2C8.686 2 6 4.686 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.314-2.686-6-6-6z" />
-                            <circle cx="12" cy="8" r="2.5" />
+          {/* ── Bottom sheet (expanded) ── */}
+          {mobileExpanded && (
+            <>
+              <div className="mobile-backdrop" onClick={() => setMobileExpanded(false)} />
+              <div className="mobile-sheet">
+                <div className="mobile-sheet-handle" />
+
+                {/* ── Search mode ── */}
+                {!directionsMode && (
+                  <div style={{ padding: "6px 16px 12px", display: "flex", flexDirection: "column" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="M21 21l-4.35-4.35" />
+                      </svg>
+                      <input
+                        className="map-input"
+                        value={query}
+                        onChange={(e) => { setQuery(e.target.value); setShowResults(true); }}
+                        onFocus={() => setShowResults(true)}
+                        placeholder="Search campus..."
+                        autoFocus
+                        style={{ background: "transparent", border: "none", borderRadius: 0, padding: "4px 0", fontSize: 16 }}
+                      />
+                      <button className="icon-btn" onClick={() => setMobileExpanded(false)} title="Close">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Quick action pills */}
+                    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                      <button
+                        onClick={() => openDirections()}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          background: "#eff6ff", border: "1px solid #bfdbfe",
+                          borderRadius: 20, padding: "6px 14px",
+                          fontSize: 13, fontWeight: 500, color: "#2563eb",
+                          cursor: "pointer", fontFamily: "'Inter', sans-serif",
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                        </svg>
+                        Directions
+                      </button>
+                      <button
+                        onClick={toggleMap}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          background: mapVisible ? "#d1fae5" : "#f3f4f6",
+                          border: `1px solid ${mapVisible ? "#6ee7b7" : "#d1d5db"}`,
+                          borderRadius: 20, padding: "6px 14px",
+                          fontSize: 13, fontWeight: 500,
+                          color: mapVisible ? "#059669" : "#555",
+                          cursor: "pointer", fontFamily: "'Inter', sans-serif",
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={mapVisible ? "#059669" : "#555"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                          <line x1="8" y1="2" x2="8" y2="18" />
+                          <line x1="16" y1="6" x2="16" y2="22" />
+                        </svg>
+                        {mapVisible ? "Hide map" : "Show map"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Search results ── */}
+                {!directionsMode && searchResults.length > 0 && (
+                  <div style={{ borderTop: "1px solid #f0f0f0", overflowY: "auto", flex: 1, paddingBottom: 20 }}>
+                    {searchResults.slice(0, 10).map((node) => (
+                      <button
+                        key={node.id}
+                        className="result-item"
+                        onMouseDown={() => handleSearchSelect(node)}
+                      >
+                        <div style={{ fontWeight: 500, fontSize: 15, color: "#111" }}>{node.caption}</div>
+                        <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{node.locations.slice(0, 3).join(" · ")}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Directions mode ── */}
+                {directionsMode && (
+                  <div style={{ padding: "4px 16px 20px", overflowY: "auto", display: "flex", flexDirection: "column", flex: 1 }}>
+                    {/* Header */}
+                    <div style={{ display: "flex", alignItems: "center", marginBottom: 12, gap: 6 }}>
+                      <button className="icon-btn" onClick={() => { closeDirections(); /* stay in sheet but go to search */ }} title="Back">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M19 12H5M12 5l-7 7 7 7" />
+                        </svg>
+                      </button>
+                      <span style={{ fontWeight: 600, fontSize: 16, color: "#111" }}>Directions</span>
+                      <div style={{ flex: 1 }} />
+                      {path.length > 0 && (
+                        <button className="icon-btn" onClick={handleReset} title="Clear route" style={{ marginLeft: "auto" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
                           </svg>
-                        </span>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: 13, color: "#1d4ed8" }}>Your Image</div>
-                          <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>Current panorama you are viewing</div>
+                        </button>
+                      )}
+                      <button className="icon-btn" onClick={() => setMobileExpanded(false)} title="Close">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* From / To */}
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 14 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: "50%", border: "2.5px solid #2563eb", background: "#fff" }} />
+                        <div style={{ width: 2, height: 28, background: "#d1d5db" }} />
+                        <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2563eb" }} />
+                      </div>
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                        <input
+                          className="map-input"
+                          value={fromQuery}
+                          onChange={(e) => handleDirSearch(e.target.value, "from")}
+                          onFocus={() => {
+                            activeDirFieldRef.current = "from";
+                            setActiveDirField("from");
+                            setDirResults(buildDirResults(fromQuery));
+                          }}
+                          onBlur={() => setTimeout(() => { activeDirFieldRef.current = null; setActiveDirField(null); setDirResults([]); }, 200)}
+                          placeholder="Starting point"
+                          autoComplete="off"
+                          style={{ fontSize: 15 }}
+                        />
+                        <input
+                          className="map-input"
+                          value={toQuery}
+                          onChange={(e) => handleDirSearch(e.target.value, "to")}
+                          onFocus={() => {
+                            activeDirFieldRef.current = "to";
+                            setActiveDirField("to");
+                            setDirResults(buildDirResults(toQuery));
+                          }}
+                          onBlur={() => setTimeout(() => { activeDirFieldRef.current = null; setActiveDirField(null); setDirResults([]); }, 200)}
+                          placeholder="Destination"
+                          autoComplete="off"
+                          style={{ fontSize: 15 }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dir results */}
+                    {dirResultsWithYours.length > 0 && activeDirField && (
+                      <div style={{ marginTop: 6, borderTop: "1px solid #f0f0f0", paddingTop: 4, overflowY: "auto", maxHeight: 200, flexShrink: 1 }}>
+                        {dirResultsWithYours.slice(0, 7).map((node) =>
+                          node.isYourLocation ? (
+                            <button
+                              key="your-location"
+                              className="result-item your-location-item"
+                              onMouseDown={() => selectDirResult(node)}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{
+                                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                                  width: 24, height: 24, borderRadius: "50%", background: "#dbeafe", flexShrink: 0
+                                }}>
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 2C8.686 2 6 4.686 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.314-2.686-6-6-6z" />
+                                    <circle cx="12" cy="8" r="2.5" />
+                                  </svg>
+                                </span>
+                                <div>
+                                  <div style={{ fontWeight: 600, fontSize: 13, color: "#1d4ed8" }}>Your Image</div>
+                                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>Current panorama you are viewing</div>
+                                </div>
+                              </div>
+                            </button>
+                          ) : (
+                            <button
+                              key={node.id}
+                              className="result-item"
+                              onMouseDown={() => selectDirResult(node)}
+                            >
+                              <div style={{ fontWeight: 500, fontSize: 14, color: "#111" }}>{node.caption}</div>
+                              <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{node.locations.slice(0, 3).join(" · ")}</div>
+                            </button>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    {/* Go button */}
+                    <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        className="blue-btn"
+                        onClick={handleGo}
+                        disabled={!canGo}
+                        style={{ flex: 1, padding: "13px 18px", fontSize: 15 }}
+                      >
+                        Get directions
+                      </button>
+                      {path.length > 0 && (
+                        <button className="icon-btn" onClick={handleReset} style={{ border: "1.5px solid #e5e7eb" }}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 12 6 9 9 12" />
+                            <path d="M6 9a9 9 0 1 1 0 9" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Route summary */}
+                    {path.length > 0 && (
+                      <div style={{ marginTop: 12, padding: "10px 12px", background: "#eff6ff", borderRadius: 10, borderLeft: "3px solid #2563eb" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
+                          Route found · {path.length - 1} stop{path.length - 1 !== 1 ? "s" : ""}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#3b82f6", marginTop: 3 }}>
+                          Follow the blue arrows
                         </div>
                       </div>
-                    </button>
-                  ) : (
-                    <button
-                      key={node.id}
-                      className="result-item"
-                      onMouseDown={() => selectDirResult(node)}
-                    >
-                      <div style={{ fontWeight: 500, fontSize: 13, color: "#111" }}>{node.caption}</div>
-                      <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{node.locations.slice(0, 3).join(" · ")}</div>
-                    </button>
-                  )
+                    )}
+
+                    {hasSearched && path.length === 0 && fromNode && toNode && (
+                      <div style={{ marginTop: 10, padding: "8px 12px", background: "#fef2f2", borderRadius: 8 }}>
+                        <div style={{ fontSize: 12, color: "#dc2626" }}>No route found between these locations.</div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+            </>
+          )}
+        </>
+      )}
 
-            {/* Go button row */}
-            <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+      {/* ═══════════════════════════════════════════════════════════════════
+           DESKTOP LAYOUT (unchanged)
+         ═══════════════════════════════════════════════════════════════════ */}
+      {!isMobile && (
+        <div
+          className="map-ui"
+          style={{
+            position: "absolute",
+            top: 16,
+            left: 16,
+            zIndex: 10,
+            width: 320,
+            background: "#fff",
+            borderRadius: 16,
+            boxShadow: "0 2px 16px rgba(0,0,0,0.18)",
+            fontFamily: "'Inter', sans-serif",
+            // KEY: constrain height so results cannot push below viewport
+            maxHeight: "calc(100dvh - 32px)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          {/* ── Search mode ── */}
+          {!directionsMode && (
+            <div style={{ padding: "10px 12px", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+              {/* Search icon */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="11" cy="11" r="8" />
+                <path d="M21 21l-4.35-4.35" />
+              </svg>
+              <input
+                className="map-input"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShowResults(true);
+                }}
+                onFocus={() => setShowResults(true)}
+                onBlur={() => setTimeout(() => setShowResults(false), 150)}
+                placeholder="Search campus..."
+                style={{ background: "transparent", border: "none", borderRadius: 0, padding: "4px 0", fontSize: 15 }}
+              />
+              {/* Directions button */}
               <button
-                className="blue-btn"
-                onClick={handleGo}
-                disabled={!canGo}
-                style={{ flex: 1 }}
+                className="icon-btn"
+                onClick={openDirections}
+                title="Get directions"
+                style={{ flexShrink: 0 }}
               >
-                Get directions
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11" />
+                </svg>
               </button>
-              {path.length > 0 && (
-                <button className="icon-btn" onClick={handleReset} style={{ border: "1.5px solid #e5e7eb" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 12 6 9 9 12" />
-                    <path d="M6 9a9 9 0 1 1 0 9" />
+              {/* Contributors button */}
+              <a
+                href="/contributors"
+                title="Contributors"
+                style={{
+                  flexShrink: 0,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 8,
+                  padding: 6,
+                  transition: "background 0.12s",
+                  color: "#555",
+                  textDecoration: "none",
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = "#f0f0f0"}
+                onMouseLeave={(e) => e.currentTarget.style.background = "none"}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </a>
+            </div>
+          )}
+
+          {/* ── Search results dropdown (scrollable, contained within card) ── */}
+          {!directionsMode && searchResults.length > 0 && (
+            <div style={{ borderTop: "1px solid #f0f0f0", overflowY: "auto", flexShrink: 1, paddingBottom: 6 }}>
+              {searchResults.slice(0, 8).map((node) => (
+                <button
+                  key={node.id}
+                  className="result-item"
+                  onMouseDown={() => handleSearchSelect(node)}
+                >
+                  <div style={{ fontWeight: 500, fontSize: 14, color: "#111" }}>{node.caption}</div>
+                  <div style={{ fontSize: 12, color: "#888", marginTop: 1 }}>{node.locations.slice(0, 3).join(" · ")}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* ── Directions mode ── */}
+          {directionsMode && (
+            <div style={{ padding: "12px 14px 14px", overflowY: "auto", display: "flex", flexDirection: "column", flexShrink: 1 }}>
+              {/* Header row */}
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 12, gap: 6, flexShrink: 0 }}>
+                <button className="icon-btn" onClick={closeDirections} title="Back">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#333" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 12H5M12 5l-7 7 7 7" />
                   </svg>
                 </button>
+                <span style={{ fontWeight: 600, fontSize: 15, color: "#111" }}>Directions</span>
+                {path.length > 0 && (
+                  <button className="icon-btn" onClick={handleReset} title="Clear route" style={{ marginLeft: "auto" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* From / To fields */}
+              <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+                {/* Dot line decoration */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 14, gap: 0 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", border: "2.5px solid #2563eb", background: "#fff" }} />
+                  <div style={{ width: 2, height: 28, background: "#d1d5db" }} />
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#2563eb" }} />
+                </div>
+
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <input
+                    className="map-input"
+                    value={fromQuery}
+                    onChange={(e) => handleDirSearch(e.target.value, "from")}
+                    onFocus={() => {
+                      activeDirFieldRef.current = "from";
+                      setActiveDirField("from");
+                      setDirResults(buildDirResults(fromQuery));
+                    }}
+                    onBlur={() => setTimeout(() => { activeDirFieldRef.current = null; setActiveDirField(null); setDirResults([]); }, 200)}
+                    placeholder="Starting point"
+                    autoComplete="off"
+                  />
+                  <input
+                    className="map-input"
+                    value={toQuery}
+                    onChange={(e) => handleDirSearch(e.target.value, "to")}
+                    onFocus={() => {
+                      activeDirFieldRef.current = "to";
+                      setActiveDirField("to");
+                      setDirResults(buildDirResults(toQuery));
+                    }}
+                    onBlur={() => setTimeout(() => { activeDirFieldRef.current = null; setActiveDirField(null); setDirResults([]); }, 200)}
+                    placeholder="Destination"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              {/* Dir results — always shows "Your location" first */}
+              {dirResultsWithYours.length > 0 && activeDirField && (
+                <div style={{ marginTop: 6, borderTop: "1px solid #f0f0f0", paddingTop: 4, overflowY: "auto", maxHeight: 220, flexShrink: 1 }}>
+                  {dirResultsWithYours.slice(0, 7).map((node) =>
+                    node.isYourLocation ? (
+                      <button
+                        key="your-location"
+                        className="result-item your-location-item"
+                        onMouseDown={() => selectDirResult(node)}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 24,
+                            height: 24,
+                            borderRadius: "50%",
+                            background: "#dbeafe",
+                            flexShrink: 0
+                          }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 2C8.686 2 6 4.686 6 8c0 5.25 6 14 6 14s6-8.75 6-14c0-3.314-2.686-6-6-6z" />
+                              <circle cx="12" cy="8" r="2.5" />
+                            </svg>
+                          </span>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: "#1d4ed8" }}>Your Image</div>
+                            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>Current panorama you are viewing</div>
+                          </div>
+                        </div>
+                      </button>
+                    ) : (
+                      <button
+                        key={node.id}
+                        className="result-item"
+                        onMouseDown={() => selectDirResult(node)}
+                      >
+                        <div style={{ fontWeight: 500, fontSize: 13, color: "#111" }}>{node.caption}</div>
+                        <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{node.locations.slice(0, 3).join(" · ")}</div>
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
+
+              {/* Go button row */}
+              <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <button
+                  className="blue-btn"
+                  onClick={handleGo}
+                  disabled={!canGo}
+                  style={{ flex: 1 }}
+                >
+                  Get directions
+                </button>
+                {path.length > 0 && (
+                  <button className="icon-btn" onClick={handleReset} style={{ border: "1.5px solid #e5e7eb" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 12 6 9 9 12" />
+                      <path d="M6 9a9 9 0 1 1 0 9" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Route summary */}
+              {path.length > 0 && (
+                <div style={{ marginTop: 12, padding: "10px 12px", background: "#eff6ff", borderRadius: 10, borderLeft: "3px solid #2563eb", flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
+                    Route found · {path.length - 1} stop{path.length - 1 !== 1 ? "s" : ""}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#3b82f6", marginTop: 3 }}>
+                    Follow the blue arrows
+                  </div>
+                </div>
+              )}
+
+              {hasSearched && path.length === 0 && fromNode && toNode && (
+                <div style={{ marginTop: 10, padding: "8px 12px", background: "#fef2f2", borderRadius: 8, flexShrink: 0 }}>
+                  <div style={{ fontSize: 12, color: "#dc2626" }}>No route found between these locations.</div>
+                </div>
               )}
             </div>
-
-            {/* Route summary */}
-            {path.length > 0 && (
-              <div style={{ marginTop: 12, padding: "10px 12px", background: "#eff6ff", borderRadius: 10, borderLeft: "3px solid #2563eb", flexShrink: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#1d4ed8" }}>
-                  Route found · {path.length - 1} stop{path.length - 1 !== 1 ? "s" : ""}
-                </div>
-                <div style={{ fontSize: 12, color: "#3b82f6", marginTop: 3 }}>
-                  Follow the blue arrows
-                </div>
-              </div>
-            )}
-
-            {hasSearched && path.length === 0 && fromNode && toNode && (
-              <div style={{ marginTop: 10, padding: "8px 12px", background: "#fef2f2", borderRadius: 8, flexShrink: 0 }}>
-                <div style={{ fontSize: 12, color: "#dc2626" }}>No route found between these locations.</div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* ── Panorama container ── */}
       <div ref={containerRef} style={{ width: "100vw", height: "100dvh" }} />

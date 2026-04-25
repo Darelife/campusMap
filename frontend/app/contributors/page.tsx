@@ -76,10 +76,10 @@ const CONTRIBUTORS_2025_SEM2 = [
   },
   {
     name: "Suryansh Ray",
-    bitsId: "",
+    bitsId: "2025A7PS1522G",
     role: "Data Collection",
     description: "Helped in gathering the images.",
-    github: "",
+    github: "raysuryansh9",
   },
   {
     name: "Ankit Sharma",
@@ -101,123 +101,148 @@ export default function ContributorsPage() {
         padding: "40px 20px",
       }}
     >
-      <div
-        style={{
-          maxWidth: "700px",
-          margin: "0 auto",
-          backgroundColor: "#fff",
-          padding: "40px",
-          border: "1px solid #ccc",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-        }}
-      >
-        <div style={{ marginBottom: "20px" }}>
-          <Link
-            href="/"
-            style={{
-              color: "#0066cc",
-              textDecoration: "none",
-              fontSize: "14px",
-            }}
-          >
-            &larr; Back to Campus Map
-          </Link>
-        </div>
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (max-width: 600px) {
+            .contributor-card-header {
+              flex-direction: column;
+              align-items: flex-start !important;
+              gap: 8px;
+            }
+            .contributor-links {
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+              width: 100%;
+            }
+            .bits-id {
+              margin-right: 0 !important;
+              display: block;
+            }
+            .main-content-box {
+              padding: 20px !important;
+            }
+          }
+        `}} />
 
-        <h1 style={{ fontSize: "28px", margin: "0 0 10px 0", color: "#111" }}>
-          Contributors
-        </h1>
-        <p
+        <div
+          className="main-content-box"
           style={{
-            fontSize: "15px",
-            color: "#555",
-            margin: "0 0 40px 0",
-            lineHeight: "1.6",
+            maxWidth: "700px",
+            margin: "0 auto",
+            backgroundColor: "#fff",
+            padding: "40px",
+            border: "1px solid #ccc",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
           }}
         >
-          The BITS Goa Campus Map is an open-source project. Below are the
-          contributors who have helped build and improve the map.
-        </p>
+          <div style={{ marginBottom: "20px" }}>
+            <Link
+              href="/"
+              style={{
+                color: "#0066cc",
+                textDecoration: "none",
+                fontSize: "14px",
+              }}
+            >
+              &larr; Back to Campus Map
+            </Link>
+          </div>
 
-        <section style={{ marginBottom: "40px" }}>
-          <h2
+          <h1 style={{ fontSize: "28px", margin: "0 0 10px 0", color: "#111" }}>
+            Contributors
+          </h1>
+          <p
             style={{
-              fontSize: "22px",
-              borderBottom: "1px solid #ddd",
-              paddingBottom: "8px",
-              margin: "0 0 20px 0",
-              color: "#222",
+              fontSize: "15px",
+              color: "#555",
+              margin: "0 0 40px 0",
+              lineHeight: "1.6",
             }}
           >
-            2025-26 Sem 2
-          </h2>
+            The BITS Goa Campus Map is an open-source project. Below are the
+            contributors who have helped build and improve the map.
+          </p>
 
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {CONTRIBUTORS_2025_SEM2.map((c) => (
-              <li
-                key={c.name}
-                style={{
-                  margin: "0 0 20px 0",
-                  padding: "15px",
-                  backgroundColor: "#fafafa",
-                  border: "1px solid #eee",
-                }}
-              >
-                <div
+          <section style={{ marginBottom: "40px" }}>
+            <h2
+              style={{
+                fontSize: "22px",
+                borderBottom: "1px solid #ddd",
+                paddingBottom: "8px",
+                margin: "0 0 20px 0",
+                color: "#222",
+              }}
+            >
+              2025-26 Sem 2
+            </h2>
+
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {CONTRIBUTORS_2025_SEM2.map((c) => (
+                <li
+                  key={c.name}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "5px",
+                    margin: "0 0 20px 0",
+                    padding: "15px",
+                    backgroundColor: "#fafafa",
+                    border: "1px solid #eee",
                   }}
                 >
-                  <h3 style={{ margin: "0", fontSize: "18px", color: "#111" }}>
-                    {c.name}
-                  </h3>
-                  <div style={{ fontSize: "13px" }}>
-                    {c.bitsId && (
-                      <span style={{ color: "#666", marginRight: "10px" }}>
-                        {c.bitsId}
-                      </span>
-                    )}
-                    {c.github && (
-                      <a
-                        href={c.github}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "#0066cc", textDecoration: "none" }}
-                      >
-                        GitHub Profile
-                      </a>
-                    )}
+                  <div
+                    className="contributor-card-header"
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "5px",
+                    }}
+                  >
+                    <h3 style={{ margin: "0", fontSize: "18px", color: "#111" }}>
+                      {c.name}
+                    </h3>
+                    <div className="contributor-links" style={{ fontSize: "13px" }}>
+                      {c.bitsId && (
+                        <span className="bits-id" style={{ color: "#666", marginRight: "10px" }}>
+                          {c.bitsId}
+                        </span>
+                      )}
+                      {c.github && (
+                        <a
+                          href={c.github}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "#0066cc", textDecoration: "none" }}
+                        >
+                          GitHub Profile
+                        </a>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    color: "#444",
-                    marginBottom: "8px",
-                  }}
-                >
-                  {c.role}
-                </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "bold",
+                      color: "#444",
+                      marginBottom: "8px",
+                    }}
+                  >
+                    {c.role}
+                  </div>
 
-                <p
-                  style={{
-                    margin: "0",
-                    fontSize: "14px",
-                    color: "#555",
-                    lineHeight: "1.5",
-                  }}
-                >
-                  {c.description}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
+                  <p
+                    style={{
+                      margin: "0",
+                      fontSize: "14px",
+                      color: "#555",
+                      lineHeight: "1.5",
+                    }}
+                  >
+                    {c.description}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
 
         <section
           style={{
