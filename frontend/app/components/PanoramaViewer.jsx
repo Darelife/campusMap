@@ -7,7 +7,33 @@ import "@photo-sphere-viewer/core/index.css";
 import "@photo-sphere-viewer/virtual-tour-plugin/index.css";
 import "@photo-sphere-viewer/plan-plugin/index.css";
 import "leaflet/dist/leaflet.css";
-import { nodes } from "../data/nodes";
+import { nodes as rawNodes } from "../data/nodes";
+
+/**
+ * Pre-process nodes to ensure bidirectionality.
+ * If node A links to B, but B doesn't link to A, we add that link.
+ */
+const nodes = (() => {
+  const nodeMap = rawNodes.reduce((acc, node) => {
+    acc[node.id] = { ...node, links: [...(node.links || [])] };
+    return acc;
+  }, {});
+
+  rawNodes.forEach((node) => {
+    (node.links || []).forEach((link) => {
+      const target = nodeMap[link.nodeId];
+      if (target) {
+        const hasBackLink = target.links.some((l) => l.nodeId === node.id);
+        if (!hasBackLink) {
+          target.links.push({ nodeId: node.id });
+        }
+      }
+    });
+  });
+
+  return Object.values(nodeMap);
+})();
+
 
 // ─── "Your location" sentinel ──────────────────────────────────────────────
 const YOUR_IMAGE_ITEM = {
